@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  GURU
+  WALI_KELAS
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(GURU)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi jika user adalah wali kelas
+  kelasWali Kelas?
+}
+
+model Kelas {
+  id          String   @id @default(uuid())
+  nama        String   @unique // Contoh: "7A", "8B"
+  tingkat     Int      // Contoh: 7, 8, 9
+  tahunAjaran String   // Contoh: "2025/2026"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Wali kelas
+  waliKelasId String?  @unique
+  waliKelas   User?    @relation(fields: [waliKelasId], references: [id])
+
+  siswa Siswa[]
+}
+
+model Siswa {
+  id           String   @id @default(uuid())
+  nisn         String   @unique
+  nis          String   @unique
+  nama         String
+  jenisKelamin String   // "L" / "P"
+  alamat       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  kelasId String
+  kelas   Kelas   @relation(fields: [kelasId], references: [id])
+
+  nilai Nilai[]
+}
+
+model MataPelajaran {
+  id        String   @id @default(uuid())
+  kode      String   @unique // Contoh: "MAT", "IPA"
+  nama      String   // Contoh: "Matematika"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  nilai Nilai[]
+}
+
+model Nilai {
+  id        String   @id @default(uuid())
+  semester  Int      // 1 (Ganjil) atau 2 (Genap)
+  nilaiTugas Float    @default(0)
+  nilaiUTS   Float    @default(0)
+  nilaiUAS   Float    @default(0)
+  nilaiAkhir Float    @default(0)
+  catatan    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  siswaId String
+  siswa   Siswa  @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  mapelId String
+  mapel   MataPelajaran @relation(fields: [mapelId], references: [id], onDelete: Cascade)
+
+  @@unique([siswaId, mapelId, semester])
+}
