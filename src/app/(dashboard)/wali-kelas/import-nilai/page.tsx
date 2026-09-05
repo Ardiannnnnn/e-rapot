@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import FormPelengkapClient from "./form-pelengkap";
+import FormImportNilaiClient from "./form-import-nilai";
 import { AlertCircleIcon } from "@/components/shared/icons";
-import { EkskulItem } from "@/actions/wali-kelas";
 
-export default async function WaliKelasPelengkapPage() {
+export default async function WaliKelasImportNilaiPage() {
   const user = await requireUser();
 
-  // 1. Cari kelas binaan
+  // 1. Cari kelas binaan wali kelas (atau kelas pertama jika Admin)
   let kelas = await prisma.kelas.findFirst({
     where: { waliKelasId: user.id },
   });
@@ -45,52 +44,51 @@ export default async function WaliKelasPelengkapPage() {
   const tahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
   const semester = periodeAktif?.semester || 1;
 
-  // 3. Ambil seluruh siswa beserta data raporPelengkap untuk semester ini
-  const rawSiswaList = await prisma.siswa.findMany({
-    where: { kelasId: kelas.id },
+  // 3. Ambil seluruh mata pelajaran yang diampu di kelas ini pada semester aktif
+  const pengampuList = await prisma.pengampu.findMany({
+    where: {
+      kelasId: kelas.id,
+      tahunAjaran,
+      OR: [{ semester: 0 }, { semester }],
+    },
     include: {
-      raporPelengkap: {
-        where: {
-          tahunAjaran,
-          semester,
-        },
-      },
+      mapel: true,
+      guru: true,
+    },
+    orderBy: {
+      mapel: { kode: "asc" },
+    },
+  });
+
+  const mapelList = pengampuList.map((p) => ({
+    id: p.mapel.id,
+    kode: p.mapel.kode,
+    nama: p.mapel.nama,
+    guruNama: p.guru.name,
+  }));
+
+  // 4. Ambil seluruh siswa di rombel ini
+  const siswaList = await prisma.siswa.findMany({
+    where: { kelasId: kelas.id },
+    select: {
+      id: true,
+      nisn: true,
+      nis: true,
+      nama: true,
+      jenisKelamin: true,
     },
     orderBy: { nama: "asc" },
   });
 
-  const initialSiswaList = rawSiswaList.map((s) => {
-    const p = s.raporPelengkap[0];
-    let ekskulParsed: EkskulItem[] = [];
-    if (p && p.ekskul) {
-      try {
-        ekskulParsed = JSON.parse(p.ekskul);
-      } catch (e) {
-        ekskulParsed = [];
-      }
-    }
-
-    return {
-      id: s.id,
-      nama: s.nama,
-      nisn: s.nisn,
-      nis: s.nis,
-      jenisKelamin: s.jenisKelamin,
-      sakit: p?.sakit ?? 0,
-      izin: p?.izin ?? 0,
-      alpa: p?.alpa ?? 0,
-      catatanWali: p?.catatanWali ?? "",
-      ekskul: ekskulParsed,
-    };
-  });
-
   return (
-    <FormPelengkapClient
+    <FormImportNilaiClient
+      kelasId={kelas.id}
       kelasNama={kelas.nama}
       tingkat={kelas.tingkat}
       tahunAjaran={tahunAjaran}
       semester={semester}
-      initialSiswaList={initialSiswaList}
+      mapelList={mapelList}
+      siswaList={siswaList}
     />
   );
 }

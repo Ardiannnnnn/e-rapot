@@ -5,16 +5,31 @@ import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-export async function loginAction(formData: { email: string; password: string }) {
-  const { email, password } = formData;
+import { isValidEmail, sanitizeInput } from "@/lib/sanitize";
 
-  // 1. Cari user di database via Prisma
+export async function loginAction(formData: { email: string; password: string }) {
+  const email = sanitizeInput(formData.email || "").toLowerCase();
+  const password = formData.password || "";
+
+  if (!email || !password || !isValidEmail(email)) {
+    return { success: false, message: "Format email atau kata sandi tidak valid." };
+  }
+
+  // 1. Cari user di database via Prisma (Parameterized query - Kebal SQL Injection)
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
   if (!user) {
     return { success: false, message: "Email atau kata sandi salah." };
+  }
+
+  // Cek status aktif akun
+  if (user.isActive === false) {
+    return {
+      success: false,
+      message: "Akun Anda berstatus nonaktif. Silakan hubungi Administrator Sekolah.",
+    };
   }
 
   // 2. Verifikasi password hash menggunakan bcryptjs
@@ -24,10 +39,11 @@ export async function loginAction(formData: { email: string; password: string })
     return { success: false, message: "Email atau kata sandi salah." };
   }
 
-  // 3. Set cookie session
+  // 3. Set cookie session aman (HttpOnly, SameSite, Secure)
   const cookieStore = await cookies();
   cookieStore.set("session_token", user.id.toString(), {
-    httpOnly: true,
+    httpOnly: true, // Kebal pencurian XSS dari JS browser
+    sameSite: "lax", // Kebal CSRF
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 7, // 1 minggu
     path: "/",

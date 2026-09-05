@@ -13,7 +13,8 @@ if (
   globalForPrisma.prisma &&
   (!("pengampu" in globalForPrisma.prisma) ||
     !("tujuanPembelajaran" in globalForPrisma.prisma) ||
-    !("periodeAkademik" in globalForPrisma.prisma))
+    !("periodeAkademik" in globalForPrisma.prisma) ||
+    !("raporPelengkap" in globalForPrisma.prisma))
 ) {
   globalForPrisma.prisma = undefined;
 }

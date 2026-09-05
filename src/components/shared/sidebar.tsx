@@ -115,7 +115,7 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           icon: UsersIcon,
           badge: "Input Nilai",
           badgeColor: "bg-emerald-50 text-emerald-800 border-emerald-200",
-          allowedRoles: ["GURU", "WALI_KELAS"],
+          allowedRoles: ["GURU"],
         },
         {
           title: "Tujuan Pembelajaran (TP)",
@@ -145,6 +145,14 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           allowedRoles: ["WALI_KELAS"],
         },
         {
+          title: "Import Nilai Excel",
+          href: "/wali-kelas/import-nilai",
+          icon: TableSpreadsheetIcon,
+          badge: "Excel",
+          badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
+          allowedRoles: ["WALI_KELAS"],
+        },
+        {
           title: "Presensi & Ekskul",
           href: "/wali-kelas/pelengkap",
           icon: ClipboardListIcon,
@@ -164,8 +172,23 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
     },
   ];
 
+  const isWaliKelas = Boolean(user.kelasWali) || user.role === "WALI_KELAS";
+  const isGuruMode = pathname.startsWith("/guru");
+
   const isItemAllowed = (item: MenuItem) => {
     if (!item.allowedRoles) return true;
+
+    // Jika user adalah Wali Kelas yang juga mengajar (peran ganda):
+    if (isWaliKelas && (user.role === "WALI_KELAS" || user.role === "GURU")) {
+      if (isGuruMode) {
+        // Sedang di mode Guru Mapel: tampilkan menu Guru Mapel
+        return item.allowedRoles.includes("GURU");
+      } else {
+        // Sedang di mode Wali Kelas: tampilkan menu Wali Kelas
+        return item.allowedRoles.includes("WALI_KELAS");
+      }
+    }
+
     return item.allowedRoles.includes(role);
   };
 
@@ -185,7 +208,11 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
     }
   };
 
-  const roleMeta = getRoleBadge(user.role);
+  const roleMeta = isWaliKelas
+    ? isGuruMode
+      ? { label: "Mode Guru Mapel", bg: "bg-blue-50 text-blue-700 border-blue-200" }
+      : { label: `Wali ${user.kelasWali?.nama || "Kelas"}`, bg: "bg-[#e9f0ec] text-[#1b4332] border-[#c2d7ca]" }
+    : getRoleBadge(user.role);
 
   return (
     <>
@@ -270,7 +297,7 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
                 </span>
                 <span className="font-mono font-medium text-zinc-700">2026/2027</span>
               </div>
-              {user.role === "WALI_KELAS" && (
+              {isWaliKelas && !isGuruMode && (
                 <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between text-[11px]">
                   <span className="text-zinc-500">Rombel Binaan:</span>
                   <span className="font-semibold text-[#1b4332] font-mono">{activeClass}</span>

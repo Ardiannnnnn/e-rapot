@@ -37,6 +37,7 @@ model User {
   name      String
   password  String
   role      Role     @default(GURU)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -86,6 +87,7 @@ model Siswa {
   kelas   Kelas   @relation(fields: [kelasId], references: [id])
 
   nilai Nilai[]
+  raporPelengkap RaporPelengkap[]
 }
 
 model MataPelajaran {
@@ -180,4 +182,23 @@ model PeriodeAkademik {
 
   @@unique([sekolahId, tahunAjaran, semester])
   @@index([sekolahId, isAktif])
+}
+
+model RaporPelengkap {
+  id          String   @id @default(uuid())
+  tahunAjaran String   // Contoh: "2026/2027"
+  semester    Int      // 1 (Ganjil) atau 2 (Genap)
+  sakit       Int      @default(0)
+  izin        Int      @default(0)
+  alpa        Int      @default(0)
+  catatanWali String?  // Narasi motivasi & evaluasi perkembangan karakter siswa
+  ekskul      String?  // Format JSON array: [{ nama: "Pramuka", predikat: "Sangat Baik", keterangan: "..." }]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  siswaId     String
+  siswa       Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([siswaId, tahunAjaran, semester])
+  @@index([siswaId, tahunAjaran, semester])
 }
