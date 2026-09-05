@@ -8,9 +8,27 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
+  ADMIN_SEKOLAH
   ADMIN
   GURU
   WALI_KELAS
+}
+
+model Sekolah {
+  id            String   @id @default(uuid())
+  npsn          String   @unique
+  nama          String
+  alamat        String?
+  kepalaSekolah String?
+  nipKepsek     String?
+  status        String   @default("AKTIF") // AKTIF / NONAKTIF
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users         User[]
+  kelas         Kelas[]
+  periodeAkademik PeriodeAkademik[]
 }
 
 model User {
@@ -22,8 +40,16 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Tenant sekolah
+  sekolahId String?
+  sekolah   Sekolah? @relation(fields: [sekolahId], references: [id])
+
   // Relasi jika user adalah wali kelas
   kelasWali Kelas?
+
+  // Relasi guru pengampu mata pelajaran
+  pengampu           Pengampu[]
+  tujuanPembelajaran TujuanPembelajaran[]
 }
 
 model Kelas {
@@ -34,11 +60,16 @@ model Kelas {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Tenant sekolah
+  sekolahId   String?
+  sekolah     Sekolah? @relation(fields: [sekolahId], references: [id])
+
   // Wali kelas
   waliKelasId String?  @unique
   waliKelas   User?    @relation(fields: [waliKelasId], references: [id])
 
-  siswa Siswa[]
+  siswa       Siswa[]
+  pengampu    Pengampu[]
 }
 
 model Siswa {
@@ -64,19 +95,22 @@ model MataPelajaran {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  nilai Nilai[]
+  nilai              Nilai[]
+  pengampu           Pengampu[]
+  tujuanPembelajaran TujuanPembelajaran[]
 }
 
 model Nilai {
-  id        String   @id @default(uuid())
-  semester  Int      // 1 (Ganjil) atau 2 (Genap)
+  id         String   @id @default(uuid())
+  tahunAjaran String  @default("2026/2027") // Contoh: "2026/2027"
+  semester   Int      // 1 (Ganjil) atau 2 (Genap)
   nilaiTugas Float    @default(0)
   nilaiUTS   Float    @default(0)
   nilaiUAS   Float    @default(0)
   nilaiAkhir Float    @default(0)
   catatan    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   siswaId String
   siswa   Siswa  @relation(fields: [siswaId], references: [id], onDelete: Cascade)
@@ -84,5 +118,66 @@ model Nilai {
   mapelId String
   mapel   MataPelajaran @relation(fields: [mapelId], references: [id], onDelete: Cascade)
 
-  @@unique([siswaId, mapelId, semester])
+  @@unique([siswaId, mapelId, tahunAjaran, semester])
+}
+
+model Pengampu {
+  id          String   @id @default(uuid())
+  tahunAjaran String   // Contoh: "2026/2027"
+  semester    Int      @default(0) // 0 = Berlaku Semester 1 & 2, 1 = Ganjil saja, 2 = Genap saja
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Guru pengampu
+  guruId      String
+  guru        User     @relation(fields: [guruId], references: [id], onDelete: Cascade)
+
+  // Mata pelajaran yang diajar
+  mapelId     String
+  mapel       MataPelajaran @relation(fields: [mapelId], references: [id], onDelete: Cascade)
+
+  // Kelas yang diajar
+  kelasId     String
+  kelas       Kelas    @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+
+  @@unique([kelasId, mapelId, tahunAjaran, semester])
+}
+
+model TujuanPembelajaran {
+  id          String   @id @default(uuid())
+  kode        String   // Contoh: "TP 1", "TP 2"
+  deskripsi   String   // Contoh: "menghitung operasi bilangan cacah sampai 100"
+  tingkat     Int      // Tingkat kelas (1, 2, 3, 4, 5, 6)
+  semester    Int      @default(1) // 1 (Ganjil) atau 2 (Genap)
+  tahunAjaran String   // Contoh: "2026/2027"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relasi ke Mata Pelajaran
+  mapelId     String
+  mapel       MataPelajaran @relation(fields: [mapelId], references: [id], onDelete: Cascade)
+
+  // Guru penyusun/pengampu
+  guruId      String
+  guru        User          @relation(fields: [guruId], references: [id], onDelete: Cascade)
+
+  @@index([mapelId, tingkat, semester])
+}
+
+model PeriodeAkademik {
+  id           String    @id @default(uuid())
+  tahunAjaran  String    // Contoh: "2026/2027"
+  semester     Int       // 1 (Ganjil) atau 2 (Genap)
+  isAktif      Boolean   @default(false)
+  statusNilai  String    @default("BUKA") // "BUKA" (Guru bisa edit) atau "KUNCI" (Read-only)
+  tanggalCetak DateTime? // Tanggal cetak tanda tangan rapor
+  tempatCetak  String?   @default("Jakarta")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sekolahId    String
+  sekolah      Sekolah   @relation(fields: [sekolahId], references: [id], onDelete: Cascade)
+
+  @@unique([sekolahId, tahunAjaran, semester])
+  @@index([sekolahId, isAktif])
 }

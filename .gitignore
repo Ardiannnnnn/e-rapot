@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# AI editor configs
+.agents/
+.claude/
+.windsurf/
+AGENTS.md
+CLAUDE.md
