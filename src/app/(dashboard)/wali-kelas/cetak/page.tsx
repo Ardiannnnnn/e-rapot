@@ -53,17 +53,22 @@ export default async function WaliKelasCetakPage() {
   }
 
   // 2. Ambil data sekolah
-  const sekolah =
+  const sekolahData =
     kelas.sekolah ||
     (await prisma.sekolah.findFirst({
       where: user.sekolahId ? { id: user.sekolahId } : undefined,
-    })) || {
-      nama: "SD NEGERI CONTOH 01",
-      npsn: "10203040",
-      alamat: "Jl. Pendidikan No. 45, Jakarta",
-      kepalaSekolah: "Drs. H. Mulyadi, M.Pd.",
-      nipKepsek: "196805121992031004",
-    };
+    }));
+
+  const sekolah = {
+    nama: sekolahData?.nama || "SDN 7 Simeulue Timur",
+    npsn: sekolahData?.npsn || "10203040",
+    alamat: sekolahData?.alamat || "Jln. Ibnu Aban Desa Air Dingin",
+    kepalaSekolah: sekolahData?.kepalaSekolah || "SYARIFAH RADHIAH, S.Pd.I",
+    nipKepsek: sekolahData?.nipKepsek || "197110201994102001",
+    kecamatan: "Kecamatan Simeulue Timur",
+    kabupatenKota: "Kabupaten Simeulue",
+    provinsi: "Provinsi ACEH",
+  };
 
   // 3. Ambil periode akademik aktif
   const periodeAktif = await prisma.periodeAkademik.findFirst({
@@ -73,16 +78,16 @@ export default async function WaliKelasCetakPage() {
     },
   });
 
-  const tahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
-  const semester = periodeAktif?.semester || 1;
-  const tempatCetak = periodeAktif?.tempatCetak || "Jakarta";
+  const tahunAjaran = periodeAktif?.tahunAjaran || "2025/2026";
+  const semester = periodeAktif?.semester || 2;
+  const tempatCetak = periodeAktif?.tempatCetak || "Air Dingin";
   const tanggalCetakFormatted = periodeAktif?.tanggalCetak
     ? new Intl.DateTimeFormat("id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
       }).format(new Date(periodeAktif.tanggalCetak))
-    : "20 Desember 2026";
+    : "20 Juni 2026";
 
   // 4. Ambil daftar mapel yang diajarkan di kelas ini pada semester aktif
   const pengampuList = await prisma.pengampu.findMany({
@@ -125,7 +130,20 @@ export default async function WaliKelasCetakPage() {
   const fase = getFaseKurikulumMerdeka(kelas.tingkat);
   const waliKelasNama = kelas.waliKelas?.name || user.name;
 
-  // 6. Format data lembar rapor per siswa
+  // 6. Hitung total nilai per siswa untuk menentukan peringkat di kelas
+  const totalPerSiswa = siswaList.map((s) => {
+    let sum = 0;
+    pengampuList.forEach((pmp) => {
+      const n = s.nilai.find((item) => item.mapelId === pmp.mapelId);
+      sum += n?.nilaiAkhir || 0;
+    });
+    return { id: s.id, total: sum };
+  });
+
+  // Urutkan siswa berdasarkan total nilai tertinggi
+  const sortedRanking = [...totalPerSiswa].sort((a, b) => b.total - a.total);
+
+  // 7. Format data lembar rapor per siswa
   const raporList: LembarRaporData[] = siswaList.map((s) => {
     const p = s.raporPelengkap[0];
     let ekskulParsed: EkskulItem[] = [];
@@ -137,10 +155,22 @@ export default async function WaliKelasCetakPage() {
       }
     }
 
+    // Tentukan peringkat siswa saat ini (1-indexed)
+    const peringkatIndex = sortedRanking.findIndex((r) => r.id === s.id);
+    const peringkat = peringkatIndex >= 0 ? peringkatIndex + 1 : 1;
+
     // Bangun daftar nilai berdasarkan pengampu mapel
     const nilaiList = pengampuList.map((pmp) => {
       const n = s.nilai.find((item) => item.mapelId === pmp.mapelId);
       const nilaiAkhir = n?.nilaiAkhir || 0;
+
+      // Default KKTP: 75 untuk Agama & PJOK, 70 untuk mapel lainnya
+      const namaLower = pmp.mapel.nama.toLowerCase();
+      const isAgamaOrPjok =
+        namaLower.includes("agama") ||
+        namaLower.includes("jasmani") ||
+        namaLower.includes("pjok");
+      const kktp = isAgamaOrPjok ? 75 : 70;
 
       let capaianKompetensi = n?.catatan?.trim() || "";
       if (!capaianKompetensi) {
@@ -158,6 +188,7 @@ export default async function WaliKelasCetakPage() {
       return {
         mapelKode: pmp.mapel.kode,
         mapelNama: pmp.mapel.nama,
+        kktp,
         nilaiAkhir,
         capaianKompetensi,
       };
@@ -170,6 +201,9 @@ export default async function WaliKelasCetakPage() {
         alamat: sekolah.alamat,
         kepalaSekolah: sekolah.kepalaSekolah,
         nipKepsek: sekolah.nipKepsek,
+        kecamatan: sekolah.kecamatan,
+        kabupatenKota: sekolah.kabupatenKota,
+        provinsi: sekolah.provinsi,
       },
       siswa: {
         id: s.id,
@@ -182,6 +216,7 @@ export default async function WaliKelasCetakPage() {
         nama: kelas.nama,
         tingkat: kelas.tingkat,
         fase,
+        totalSiswa: siswaList.length,
       },
       periode: {
         tahunAjaran,
@@ -200,6 +235,10 @@ export default async function WaliKelasCetakPage() {
         alpa: p?.alpa ?? 0,
         catatanWali: p?.catatanWali ?? null,
         ekskul: ekskulParsed,
+      },
+      rekapitulasi: {
+        peringkat,
+        totalSiswa: siswaList.length,
       },
     };
   });

@@ -131,6 +131,10 @@ export default function CetakRaporClient({
 
       <style jsx global>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 1.5cm 1.2cm 1.5cm 1.2cm;
+          }
           body {
             background-color: white !important;
             color: black !important;
@@ -145,10 +149,18 @@ export default function CetakRaporClient({
             display: none !important;
           }
           .rapor-sheet-wrapper {
-            page-break-after: always !important;
-            break-after: page !important;
             margin: 0 !important;
             padding: 0 !important;
+          }
+          .page-1 {
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+          .page-2 {
+            page-break-before: always !important;
+            break-before: page !important;
+            page-break-after: always !important;
+            break-after: page !important;
           }
           .rapor-paper {
             border: none !important;
