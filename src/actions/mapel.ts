@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-export async function createMapelAction(payload: { kode: string; nama: string }) {
+export async function createMapelAction(payload: { kode: string; nama: string; isMulok?: boolean }) {
   await requireUser();
-  const { kode, nama } = payload;
+  const { kode, nama, isMulok = false } = payload;
 
   if (!kode || !nama) {
     return { success: false, message: "Kode mapel dan nama mata pelajaran wajib diisi." };
@@ -26,11 +26,14 @@ export async function createMapelAction(payload: { kode: string; nama: string })
       data: {
         kode: cleanKode,
         nama: nama.trim(),
+        isMulok: !!isMulok,
       },
     });
 
     revalidatePath("/admin-sekolah/mapel");
     revalidatePath("/admin-sekolah/pendidik");
+    revalidatePath("/admin-sekolah/kelas");
+    revalidatePath("/wali-kelas/cetak");
     revalidatePath("/guru");
 
     return { success: true, message: `Mata pelajaran '${nama}' berhasil ditambahkan.` };
@@ -40,9 +43,9 @@ export async function createMapelAction(payload: { kode: string; nama: string })
   }
 }
 
-export async function updateMapelAction(payload: { id: string; kode: string; nama: string }) {
+export async function updateMapelAction(payload: { id: string; kode: string; nama: string; isMulok?: boolean }) {
   await requireUser();
-  const { id, kode, nama } = payload;
+  const { id, kode, nama, isMulok } = payload;
 
   if (!id || !kode || !nama) {
     return { success: false, message: "Data tidak lengkap." };
@@ -68,11 +71,14 @@ export async function updateMapelAction(payload: { id: string; kode: string; nam
       data: {
         kode: cleanKode,
         nama: nama.trim(),
+        ...(isMulok !== undefined ? { isMulok: !!isMulok } : {}),
       },
     });
 
     revalidatePath("/admin-sekolah/mapel");
     revalidatePath("/admin-sekolah/pendidik");
+    revalidatePath("/admin-sekolah/kelas");
+    revalidatePath("/wali-kelas/cetak");
     revalidatePath("/guru");
 
     return { success: true, message: "Mata pelajaran berhasil diperbarui." };

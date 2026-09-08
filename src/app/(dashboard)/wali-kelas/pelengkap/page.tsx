@@ -3,6 +3,9 @@ import { requireUser } from "@/lib/auth";
 import FormPelengkapClient from "./form-pelengkap";
 import { AlertCircleIcon } from "@/components/shared/icons";
 import { EkskulItem } from "@/actions/wali-kelas";
+import { getTemplateRaporAction } from "@/actions/master-deskripsi";
+
+export const dynamic = "force-dynamic";
 
 export default async function WaliKelasPelengkapPage() {
   const user = await requireUser();
@@ -70,6 +73,15 @@ export default async function WaliKelasPelengkapPage() {
       }
     }
 
+    let kokurikulerParsed = [];
+    if (p && p.kokurikuler) {
+      try {
+        kokurikulerParsed = JSON.parse(p.kokurikuler);
+      } catch (e) {
+        kokurikulerParsed = [];
+      }
+    }
+
     return {
       id: s.id,
       nama: s.nama,
@@ -81,16 +93,32 @@ export default async function WaliKelasPelengkapPage() {
       alpa: p?.alpa ?? 0,
       catatanWali: p?.catatanWali ?? "",
       ekskul: ekskulParsed,
+      kokurikuler: kokurikulerParsed,
+      kebiasaanKarakter: p?.kebiasaanKarakter ?? "",
+      statusKenaikan: p?.statusKenaikan ?? "",
+      isPresensiSaved: !!p,
+      isEkskulSaved: !!(p && p.ekskul && ekskulParsed.length > 0),
+      isKokurikulerSaved: !!(p && p.kokurikuler && kokurikulerParsed.length > 0),
+      isKebiasaanSaved: !!(p && p.kebiasaanKarakter && p.kebiasaanKarakter.trim().length > 0),
+      isKenaikanSaved: !!(p && p.statusKenaikan && p.statusKenaikan.trim().length > 0),
     };
   });
 
+  // 4. Ambil master template rapor untuk kelas & semester ini
+  const tplRes = await getTemplateRaporAction(kelas.id, tahunAjaran, semester);
+  const initialTemplates = tplRes.success && tplRes.data
+    ? tplRes.data
+    : { temaP5: [], kebiasaan: [], saranWali: [], ekskul: [] };
+
   return (
     <FormPelengkapClient
+      kelasId={kelas.id}
       kelasNama={kelas.nama}
       tingkat={kelas.tingkat}
       tahunAjaran={tahunAjaran}
       semester={semester}
       initialSiswaList={initialSiswaList}
+      initialTemplates={initialTemplates}
     />
   );
 }

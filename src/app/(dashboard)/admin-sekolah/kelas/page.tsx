@@ -84,6 +84,7 @@ export default async function AdminKelasPage() {
       id: true,
       kode: true,
       nama: true,
+      isMulok: true,
     },
     orderBy: {
       nama: "asc",
@@ -94,6 +95,7 @@ export default async function AdminKelasPage() {
     id: m.id,
     kode: m.kode,
     nama: m.nama,
+    isMulok: m.isMulok,
   }));
 
   // Ambil data penugasan yang sudah ada untuk fitur salin template rombel & edit rombel

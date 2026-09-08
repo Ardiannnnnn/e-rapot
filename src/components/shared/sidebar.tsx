@@ -161,6 +161,14 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           allowedRoles: ["WALI_KELAS"],
         },
         {
+          title: "Master Deskripsi Rapor",
+          href: "/wali-kelas/master-deskripsi",
+          icon: SparklesIcon,
+          badge: "P5 & Opsi",
+          badgeColor: "bg-purple-50 text-purple-700 border-purple-200",
+          allowedRoles: ["WALI_KELAS"],
+        },
+        {
           title: "Cetak Rapor Siswa",
           href: "/wali-kelas/cetak",
           icon: PrinterIcon,
@@ -217,7 +225,7 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
   return (
     <>
       {/* Mobile Bar */}
-      <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between bg-[#fcfbf9] border-b border-stone-200 px-4 py-3">
+      <div className="lg:hidden print:hidden sticky top-0 z-40 flex items-center justify-between bg-[#fcfbf9] border-b border-stone-200 px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-lg bg-[#1b4332] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-xs">
             ER
@@ -246,13 +254,13 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
       {isMobileOpen && (
         <div
           onClick={() => setIsMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden print:hidden transition-opacity"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-stone-200 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-stone-200 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 print:hidden ${
           isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:shadow-none"
         }`}
       >

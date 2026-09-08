@@ -62,7 +62,7 @@ export default function DashboardHeader({ user }: { user: SessionUser }) {
   const { section, page } = getBreadcrumbs();
 
   return (
-    <header className="hidden lg:flex sticky top-0 z-30 border-b border-stone-200 bg-[#fcfbf9]/95 backdrop-blur-md px-8 py-3 items-center justify-between">
+    <header className="hidden lg:flex print:hidden sticky top-0 z-30 border-b border-stone-200 bg-[#fcfbf9]/95 backdrop-blur-md px-8 py-3 items-center justify-between">
       {/* Breadcrumb Navigasi Kiri */}
       <div className="flex items-center gap-2 text-xs text-zinc-500 font-mono">
         <span>Portal</span>

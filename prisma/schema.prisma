@@ -71,6 +71,7 @@ model Kelas {
 
   siswa       Siswa[]
   pengampu    Pengampu[]
+  templates   TemplateRapor[]
 }
 
 model Siswa {
@@ -94,6 +95,7 @@ model MataPelajaran {
   id        String   @id @default(uuid())
   kode      String   @unique // Contoh: "MAT", "IPA"
   nama      String   // Contoh: "Matematika"
+  isMulok   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -185,20 +187,41 @@ model PeriodeAkademik {
 }
 
 model RaporPelengkap {
-  id          String   @id @default(uuid())
-  tahunAjaran String   // Contoh: "2026/2027"
-  semester    Int      // 1 (Ganjil) atau 2 (Genap)
-  sakit       Int      @default(0)
-  izin        Int      @default(0)
-  alpa        Int      @default(0)
-  catatanWali String?  // Narasi motivasi & evaluasi perkembangan karakter siswa
-  ekskul      String?  // Format JSON array: [{ nama: "Pramuka", predikat: "Sangat Baik", keterangan: "..." }]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(uuid())
+  tahunAjaran       String   // Contoh: "2026/2027"
+  semester          Int      // 1 (Ganjil) atau 2 (Genap)
+  sakit             Int      @default(0)
+  izin              Int      @default(0)
+  alpa              Int      @default(0)
+  catatanWali       String?  // Narasi motivasi & evaluasi perkembangan karakter siswa
+  ekskul            String?  // Format JSON array: [{ nama: "Pramuka", predikat: "Baik" }]
+  kokurikuler       String?  // Format JSON array: [{ tema: "Tema 1: ...", deskripsi: "..." }]
+  kebiasaanKarakter String?  // 7 Kebiasaan Anak Indonesia Hebat
+  statusKenaikan    String?  // "LULUS" / "TIDAK LULUS" / "Naik ke Kelas X" / "Tinggal di Kelas X"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  siswaId     String
-  siswa       Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  siswaId           String
+  siswa             Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
 
   @@unique([siswaId, tahunAjaran, semester])
   @@index([siswaId, tahunAjaran, semester])
+}
+
+model TemplateRapor {
+  id          String   @id @default(uuid())
+  kategori    String   // "TEMA_P5" | "KEBIASAAN" | "SARAN_WALI"
+  judul       String?  // Contoh: "Tema 1: Kreasi Nusantara"
+  teks        String   // Isi narasi/deskripsi template
+  urutan      Int      @default(0)
+  tahunAjaran String   // Contoh: "2025/2026"
+  semester    Int      // 1 (Ganjil) atau 2 (Genap)
+
+  kelasId     String
+  kelas       Kelas    @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([kelasId, kategori, tahunAjaran, semester])
 }

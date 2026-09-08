@@ -23,6 +23,7 @@ export default async function AdminMapelPage() {
     id: m.id,
     kode: m.kode,
     nama: m.nama,
+    isMulok: m.isMulok,
     totalPengampu: m._count.pengampu,
     totalTP: m._count.tujuanPembelajaran,
   }));

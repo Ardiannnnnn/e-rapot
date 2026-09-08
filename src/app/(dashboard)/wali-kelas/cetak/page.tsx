@@ -2,31 +2,58 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import CetakRaporClient from "./cetak-rapor-client";
 import { AlertCircleIcon } from "@/components/shared/icons";
-import { LembarRaporData } from "./lembar-rapor";
-import { EkskulItem } from "@/actions/wali-kelas";
+import { LembarRaporData, NilaiRaporItem } from "./lembar-rapor";
+import { EkskulItem, KokurikulerItem } from "@/actions/wali-kelas";
 
 function getFaseKurikulumMerdeka(tingkat: number): string {
-  if (tingkat <= 2) return "Fase A";
-  if (tingkat <= 4) return "Fase B";
-  if (tingkat <= 6) return "Fase C";
-  if (tingkat <= 9) return "Fase D";
-  if (tingkat === 10) return "Fase E";
-  return "Fase F";
+  if (tingkat <= 2) return "A";
+  if (tingkat <= 4) return "B";
+  if (tingkat <= 6) return "C";
+  if (tingkat <= 9) return "D";
+  if (tingkat === 10) return "E";
+  return "F";
 }
 
-export default async function WaliKelasCetakPage() {
+export default async function WaliKelasCetakPage(props: {
+  searchParams?: Promise<{ kelasId?: string }>;
+}) {
   const user = await requireUser();
+  const sp = props.searchParams ? await props.searchParams : undefined;
+  const requestedKelasId = sp?.kelasId;
 
   // 1. Cari kelas binaan
-  let kelas = await prisma.kelas.findFirst({
-    where: { waliKelasId: user.id },
-    include: {
-      waliKelas: true,
-      sekolah: true,
-    },
-  });
+  let kelas = null;
+  if (requestedKelasId) {
+    kelas = await prisma.kelas.findFirst({
+      where: {
+        id: requestedKelasId,
+        ...(user.role === "GURU"
+          ? { waliKelasId: user.id }
+          : user.sekolahId
+          ? { sekolahId: user.sekolahId }
+          : {}),
+      },
+      include: {
+        waliKelas: true,
+        sekolah: true,
+      },
+    });
+  }
 
-  if (!kelas && (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN" || user.role === "SUPER_ADMIN")) {
+  if (!kelas) {
+    kelas = await prisma.kelas.findFirst({
+      where: { waliKelasId: user.id },
+      include: {
+        waliKelas: true,
+        sekolah: true,
+      },
+    });
+  }
+
+  if (
+    !kelas &&
+    (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN" || user.role === "SUPER_ADMIN")
+  ) {
     kelas = await prisma.kelas.findFirst({
       where: user.sekolahId ? { sekolahId: user.sekolahId } : undefined,
       include: {
@@ -78,8 +105,8 @@ export default async function WaliKelasCetakPage() {
     },
   });
 
-  const tahunAjaran = periodeAktif?.tahunAjaran || "2025/2026";
-  const semester = periodeAktif?.semester || 2;
+  const tahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
+  const semester = periodeAktif?.semester || 1;
   const tempatCetak = periodeAktif?.tempatCetak || "Air Dingin";
   const tanggalCetakFormatted = periodeAktif?.tanggalCetak
     ? new Intl.DateTimeFormat("id-ID", {
@@ -104,7 +131,30 @@ export default async function WaliKelasCetakPage() {
     },
   });
 
-  // 5. Ambil seluruh siswa beserta nilai dan data pelengkap
+  // 5. Ambil data Tujuan Pembelajaran (TP) yang diinput guru untuk tingkat kelas dan semester ini
+  const allTujuanPembelajaran = await prisma.tujuanPembelajaran.findMany({
+    where: {
+      tingkat: kelas.tingkat,
+      semester,
+    },
+    orderBy: { kode: "asc" },
+  });
+
+  // 6. Ambil master template rapor untuk kelas ini (Tema P5, Kebiasaan, Saran)
+  const masterTemplates = await prisma.templateRapor.findMany({
+    where: {
+      kelasId: kelas.id,
+      tahunAjaran,
+      semester,
+    },
+    orderBy: { urutan: "asc" },
+  });
+
+  const masterTemaP5 = masterTemplates.filter((t) => t.kategori === "TEMA_P5");
+  const masterKebiasaan = masterTemplates.filter((t) => t.kategori === "KEBIASAAN");
+  const masterSaran = masterTemplates.filter((t) => t.kategori === "SARAN_WALI");
+
+  // 7. Ambil seluruh siswa beserta nilai dan data pelengkap
   const siswaList = await prisma.siswa.findMany({
     where: { kelasId: kelas.id },
     include: {
@@ -129,8 +179,9 @@ export default async function WaliKelasCetakPage() {
 
   const fase = getFaseKurikulumMerdeka(kelas.tingkat);
   const waliKelasNama = kelas.waliKelas?.name || user.name;
+  const waliKelasNip = (kelas.waliKelas as any)?.nip || (user as any)?.nip || null;
 
-  // 6. Hitung total nilai per siswa untuk menentukan peringkat di kelas
+  // 8. Hitung total nilai per siswa untuk menentukan peringkat di kelas
   const totalPerSiswa = siswaList.map((s) => {
     let sum = 0;
     pengampuList.forEach((pmp) => {
@@ -143,9 +194,11 @@ export default async function WaliKelasCetakPage() {
   // Urutkan siswa berdasarkan total nilai tertinggi
   const sortedRanking = [...totalPerSiswa].sort((a, b) => b.total - a.total);
 
-  // 7. Format data lembar rapor per siswa
+  // 9. Format data lembar rapor per siswa
   const raporList: LembarRaporData[] = siswaList.map((s) => {
     const p = s.raporPelengkap[0];
+
+    // Ekstrakurikuler yang tersimpan
     let ekskulParsed: EkskulItem[] = [];
     if (p && p.ekskul) {
       try {
@@ -155,42 +208,118 @@ export default async function WaliKelasCetakPage() {
       }
     }
 
-    // Tentukan peringkat siswa saat ini (1-indexed)
+    // Kokurikuler yang tersimpan
+    let kokurikulerParsed: KokurikulerItem[] = [];
+    if (p && p.kokurikuler) {
+      try {
+        kokurikulerParsed = JSON.parse(p.kokurikuler);
+      } catch (e) {
+        kokurikulerParsed = [];
+      }
+    }
+
+    // Jika belum ada data kokurikuler yang tersimpan spesifik per siswa tapi ada master tema P5 di kelas ini
+    let finalKokurikuler = kokurikulerParsed;
+    if (finalKokurikuler.length === 0 && masterTemaP5.length > 0) {
+      finalKokurikuler = masterTemaP5.map((t) => {
+        const cleanTema = t.teks
+          .replace(/^Tema\s*\d+\s*:\s*/i, "")
+          .replace(/[()]/g, "")
+          .trim();
+        return {
+          tema: t.teks,
+          deskripsi: `${s.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiatan ${cleanTema}`,
+        };
+      });
+    }
+
+    // Kebiasaan Karakter
+    let finalKebiasaan = p?.kebiasaanKarakter?.trim() || null;
+    if (!finalKebiasaan && masterKebiasaan.length > 0) {
+      finalKebiasaan = `${s.nama.toUpperCase()} ${masterKebiasaan[0].teks}`;
+    }
+
+    // Catatan / Saran Wali Kelas
+    let finalCatatanWali = p?.catatanWali?.trim() || null;
+    if (!finalCatatanWali && masterSaran.length > 0) {
+      finalCatatanWali = masterSaran[0].teks;
+    }
+
+    // Peringkat siswa saat ini (1-indexed)
     const peringkatIndex = sortedRanking.findIndex((r) => r.id === s.id);
     const peringkat = peringkatIndex >= 0 ? peringkatIndex + 1 : 1;
 
-    // Bangun daftar nilai berdasarkan pengampu mapel
-    const nilaiList = pengampuList.map((pmp) => {
+    // Bangun daftar nilai berdasarkan pengampu mapel & Tujuan Pembelajaran guru
+    const nilaiList: NilaiRaporItem[] = pengampuList.map((pmp) => {
       const n = s.nilai.find((item) => item.mapelId === pmp.mapelId);
       const nilaiAkhir = n?.nilaiAkhir || 0;
 
-      // Default KKTP: 75 untuk Agama & PJOK, 70 untuk mapel lainnya
-      const namaLower = pmp.mapel.nama.toLowerCase();
-      const isAgamaOrPjok =
-        namaLower.includes("agama") ||
-        namaLower.includes("jasmani") ||
-        namaLower.includes("pjok");
-      const kktp = isAgamaOrPjok ? 75 : 70;
+      // JANGAN ADA DEFAULT: Jika siswa belum memiliki nilai (> 0), kosongkan capaian kompetensi
+      if (!n || nilaiAkhir <= 0) {
+        return {
+          mapelKode: pmp.mapel.kode,
+          mapelNama: pmp.mapel.nama,
+          isMulok: pmp.mapel.isMulok,
+          nilaiAkhir: 0,
+          capaianKompetensi: undefined,
+          capaianTinggi: undefined,
+          capaianRendah: undefined,
+        };
+      }
 
-      let capaianKompetensi = n?.catatan?.trim() || "";
-      if (!capaianKompetensi) {
-        if (nilaiAkhir >= 88) {
-          capaianKompetensi = `Menunjukkan penguasaan materi yang sangat baik dan melampaui seluruh kriteria tujuan pembelajaran ${pmp.mapel.nama}.`;
-        } else if (nilaiAkhir >= 75) {
-          capaianKompetensi = `Menunjukkan pemahaman yang baik dan konsisten dalam mencapai tujuan pembelajaran ${pmp.mapel.nama}.`;
-        } else if (nilaiAkhir > 0) {
-          capaianKompetensi = `Cukup menguasai kompetensi dasar, perlu penguatan dan bimbingan lebih lanjut pada beberapa materi ${pmp.mapel.nama}.`;
+      // Cari TP guru untuk mata pelajaran ini
+      const mapelTPs = allTujuanPembelajaran.filter(
+        (tp) => tp.mapelId === pmp.mapelId
+      );
+
+      let capaianTinggi = "";
+      let capaianRendah = "";
+
+      // Cek apakah guru mencentang TP spesifik (format di form input guru: "TP Tercapai: TP 1, TP 2")
+      const catatanStr = n?.catatan?.trim() || "";
+      if (catatanStr.startsWith("TP Tercapai:")) {
+        const achievedCodes = catatanStr
+          .replace("TP Tercapai:", "")
+          .split(",")
+          .map((c) => c.trim().toLowerCase());
+
+        const achievedTPs = mapelTPs.filter((tp) =>
+          achievedCodes.includes(tp.kode.toLowerCase())
+        );
+        const unachievedTPs = mapelTPs.filter(
+          (tp) => !achievedCodes.includes(tp.kode.toLowerCase())
+        );
+
+        if (achievedTPs.length > 0) {
+          capaianTinggi = `${s.nama.toUpperCase()} menunjukkan penguasaan yang sangat baik dalam ${achievedTPs[0].deskripsi}`;
+        }
+        if (achievedTPs.length > 1) {
+          capaianRendah = `${s.nama.toUpperCase()} menunjukkan penguasaan yang baik dalam ${achievedTPs[1].deskripsi}`;
+        } else if (unachievedTPs.length > 0) {
+          capaianRendah = `${s.nama.toUpperCase()} perlu bimbingan dalam ${unachievedTPs[0].deskripsi}`;
+        }
+      } else if (catatanStr.length > 0) {
+        // Jika guru menuliskan catatan manual langsung
+        const parts = catatanStr.split("\n").map((p) => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          capaianTinggi = parts[0];
+          capaianRendah = parts[1];
         } else {
-          capaianKompetensi = `Nilai capaian kompetensi belum dimasukkan oleh guru mata pelajaran.`;
+          capaianTinggi = parts[0];
         }
       }
 
       return {
         mapelKode: pmp.mapel.kode,
         mapelNama: pmp.mapel.nama,
-        kktp,
+        isMulok: pmp.mapel.isMulok,
         nilaiAkhir,
-        capaianKompetensi,
+        capaianKompetensi:
+          !catatanStr.startsWith("TP Tercapai:") && catatanStr.length > 0
+            ? catatanStr
+            : undefined,
+        capaianTinggi: capaianTinggi || undefined,
+        capaianRendah: capaianRendah || undefined,
       };
     });
 
@@ -226,15 +355,18 @@ export default async function WaliKelasCetakPage() {
       },
       waliKelas: {
         nama: waliKelasNama,
-        nip: null,
+        nip: waliKelasNip,
       },
       nilaiList,
       pelengkap: {
         sakit: p?.sakit ?? 0,
         izin: p?.izin ?? 0,
         alpa: p?.alpa ?? 0,
-        catatanWali: p?.catatanWali ?? null,
+        catatanWali: finalCatatanWali,
         ekskul: ekskulParsed,
+        kokurikuler: finalKokurikuler.length > 0 ? finalKokurikuler : undefined,
+        kebiasaanKarakter: finalKebiasaan,
+        statusKelulusan: p?.statusKenaikan ?? null,
       },
       rekapitulasi: {
         peringkat,

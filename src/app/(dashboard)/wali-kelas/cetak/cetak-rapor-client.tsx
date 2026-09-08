@@ -120,8 +120,7 @@ export default function CetakRaporClient({
           displayedList.map((r) => (
             <div
               key={r.siswa.id}
-              className="rapor-sheet-wrapper print:break-after-page print:page-break-after-always"
-              style={{ pageBreakAfter: "always", breakAfter: "page" }}
+              className="rapor-sheet-wrapper"
             >
               <LembarRapor data={r} />
             </div>
@@ -133,13 +132,14 @@ export default function CetakRaporClient({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 1.5cm 1.2cm 1.5cm 1.2cm;
+            margin: 1.2cm 1.2cm 1.2cm 1.2cm;
           }
-          body {
+          html, body {
             background-color: white !important;
             color: black !important;
             margin: 0 !important;
             padding: 0 !important;
+            width: 100% !important;
           }
           nav,
           aside,
@@ -148,19 +148,32 @@ export default function CetakRaporClient({
           .print\\:hidden {
             display: none !important;
           }
+          .rapor-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
           .rapor-sheet-wrapper {
             margin: 0 !important;
             padding: 0 !important;
+            width: 100% !important;
           }
+          /* Hanya buat jeda halaman ke siswa berikutnya jika BUKAN siswa terakhir */
+          .rapor-sheet-wrapper:not(:last-child) {
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+          /* Lembar 1 otomatis jeda ke Lembar 2 */
           .page-1 {
             page-break-after: always !important;
             break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
+          /* Lembar 2 tidak boleh pecah di tengah halaman */
           .page-2 {
-            page-break-before: always !important;
-            break-before: page !important;
-            page-break-after: always !important;
-            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           .rapor-paper {
             border: none !important;

@@ -31,6 +31,7 @@ export interface MapelOption {
   id: string;
   kode: string;
   nama: string;
+  isMulok?: boolean;
 }
 
 export interface ExistingPengampuItem {
@@ -1211,12 +1212,19 @@ export default function FormKelas({
                               </td>
 
                               <td className="px-3 py-2">
-                                <div
-                                  className={`font-medium ${
-                                    state.selected ? "text-zinc-900" : "text-zinc-500"
-                                  }`}
-                                >
-                                  {m.nama}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`font-medium ${
+                                      state.selected ? "text-zinc-900" : "text-zinc-500"
+                                    }`}
+                                  >
+                                    {m.nama}
+                                  </span>
+                                  {m.isMulok && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                                      Mulok
+                                    </span>
+                                  )}
                                 </div>
                                 <span className="font-mono text-[10px] text-zinc-400">
                                   {m.kode}
@@ -1520,12 +1528,19 @@ export default function FormKelas({
                               </td>
 
                               <td className="px-3 py-2">
-                                <div
-                                  className={`font-medium ${
-                                    state.selected ? "text-zinc-900" : "text-zinc-500"
-                                  }`}
-                                >
-                                  {m.nama}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span
+                                    className={`font-medium ${
+                                      state.selected ? "text-zinc-900" : "text-zinc-500"
+                                    }`}
+                                  >
+                                    {m.nama}
+                                  </span>
+                                  {m.isMulok && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
+                                      Mulok
+                                    </span>
+                                  )}
                                 </div>
                                 <span className="font-mono text-[10px] text-zinc-400">
                                   {m.kode}

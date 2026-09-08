@@ -5,16 +5,19 @@ const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
 });
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+// Version token untuk memaksa regenerasi instance Prisma Client di memory Next.js dev saat schema berubah
+const PRISMA_CLIENT_VERSION = "2026-09-08-mulok-v2";
 
-// Jika model baru belum ada di cache memory runtime Next.js, reset instance
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaVersion?: string;
+};
+
+// Jika schema berubah atau model/kolom baru ditambahkan, buang instance lama di memory
 if (
   process.env.NODE_ENV !== "production" &&
   globalForPrisma.prisma &&
-  (!("pengampu" in globalForPrisma.prisma) ||
-    !("tujuanPembelajaran" in globalForPrisma.prisma) ||
-    !("periodeAkademik" in globalForPrisma.prisma) ||
-    !("raporPelengkap" in globalForPrisma.prisma))
+  globalForPrisma.prismaVersion !== PRISMA_CLIENT_VERSION
 ) {
   globalForPrisma.prisma = undefined;
 }
@@ -26,4 +29,7 @@ export const prisma =
     log: ["query"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
+  globalForPrisma.prismaVersion = PRISMA_CLIENT_VERSION;
+}

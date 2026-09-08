@@ -4,6 +4,7 @@ import { EkskulItem } from "@/actions/wali-kelas";
 export interface NilaiRaporItem {
   mapelKode: string;
   mapelNama: string;
+  isMulok?: boolean;
   nilaiAkhir: number;
   capaianKompetensi?: string;
   capaianTinggi?: string;
@@ -72,57 +73,34 @@ function getDeskripsiCapaian(
   customCapaian?: string,
   customTinggi?: string,
   customRendah?: string
-) {
-  if (customTinggi && customRendah) {
+): { tinggi?: string; rendah?: string } | null {
+  // JANGAN ADA DEFAULT: Jika belum ada nilai akhir (> 0), tidak ada capaian kompetensi
+  if (nilaiAkhir <= 0) {
+    return null;
+  }
+
+  if (customTinggi || customRendah) {
     return {
       tinggi: customTinggi,
       rendah: customRendah,
     };
   }
 
-  const namaLower = mapelNama.toLowerCase();
-  const namaSiswaUpper = namaSiswa.toUpperCase();
-
-  // Template materi standar berdasarkan mata pelajaran Kurikulum Merdeka
-  let materiTinggi = "memahami materi pembelajaran dengan sangat baik";
-  let materiRendah = "menerapkan konsep pembelajaran dalam tugas harian";
-
-  if (namaLower.includes("agama")) {
-    materiTinggi = "Memahami dan mengamalkan ajaran agama Islam dalam kehidupan sehari-hari";
-    materiRendah = "Memahami dan mengamalkan ajaran agama Islam dalam kehidupan sehari-hari";
-  } else if (namaLower.includes("pancasila")) {
-    materiTinggi = "menguraikan makna sila-sila dalam Pancasila";
-    materiRendah = "menguraikan makna sila-sila dalam Pancasila";
-  } else if (namaLower.includes("indonesia")) {
-    materiTinggi = "mendapatkan inspirasi dari kisah anak-anak muda yang mengubah dunia";
-    materiRendah = "mendapatkan inspirasi dari kisah anak-anak muda yang mengubah dunia";
-  } else if (namaLower.includes("matematika")) {
-    materiTinggi = "memahami perkalian pecahan dengan bilangan asli dan menghitung hasil perkalian tersebut";
-    materiRendah = "memahami perkalian pecahan dengan bilangan asli dan menghitung hasil perkalian tersebut";
-  } else if (namaLower.includes("alam") || namaLower.includes("ipas") || namaLower.includes("sosial")) {
-    materiTinggi = "mengidentifikasi organ tubuh yang berkaitan dengan sistem gerak";
-    materiRendah = "mengidentifikasi organ tubuh yang berkaitan dengan sistem gerak";
-  } else if (namaLower.includes("seni") || namaLower.includes("prakarya")) {
-    materiTinggi = "menunjukkan kepekaannya terhadap unsur-unsur musik";
-    materiRendah = "menunjukkan kepekaannya terhadap unsur-unsur musik";
-  } else if (namaLower.includes("jasmani") || namaLower.includes("pjok") || namaLower.includes("olahraga")) {
-    materiTinggi = "menjelaskan modifikasi pola gerak dasar variasi melempar, menangkap, dan menggiring bola dengan benar";
-    materiRendah = "menjelaskan modifikasi pola gerak dasar variasi melempar, menangkap, dan menggiring bola dengan benar";
-  } else if (namaLower.includes("inggris")) {
-    materiTinggi = "mengidentifikasi dan mengucapkan kata kerja bentuk lampau (past activity)";
-    materiRendah = "mengidentifikasi dan mengucapkan kata kerja bentuk lampau (past activity)";
-  } else if (namaLower.includes("lokal") || namaLower.includes("mulok") || namaLower.includes("aceh")) {
-    materiTinggi = "Melestarikan budaya dan kearifan lokal";
-    materiRendah = "Melestarikan budaya dan kearifan lokal";
-  } else if (customCapaian) {
-    materiTinggi = customCapaian;
-    materiRendah = customCapaian;
+  if (customCapaian && customCapaian.trim()) {
+    const parts = customCapaian.split("\n").map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return {
+        tinggi: parts[0],
+        rendah: parts[1],
+      };
+    }
+    return {
+      tinggi: parts[0],
+    };
   }
 
-  return {
-    tinggi: `${namaSiswaUpper} menunjukkan penguasaan yang sangat baik dalam ${materiTinggi}`,
-    rendah: `${namaSiswaUpper} menunjukkan penguasaan yang baik dalam ${materiRendah}`,
-  };
+  // JANGAN ADA DEFAULT: Kembalikan null jika guru belum memasukkan TP atau catatan
+  return null;
 }
 
 export default function LembarRapor({ data }: { data: LembarRaporData }) {
@@ -145,47 +123,43 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
   // Total ketidakhadiran
   const totalAbsen = (pelengkap.sakit || 0) + (pelengkap.izin || 0) + (pelengkap.alpa || 0);
 
-  // Status kelulusan / kenaikan kelas
-  const isKelasAkhir = kelas.tingkat === 6 || kelas.tingkat === 9 || kelas.tingkat === 12;
+  // Status kelulusan / kenaikan kelas (Hanya berlaku pada Semester 2 / Genap)
+  const isSemesterGenap = periode.semester === 2;
+  const isKelasAkhir = kelas.tingkat === 6;
   const statusHasil =
     pelengkap.statusKelulusan || (isKelasAkhir ? "LULUS" : `Naik ke Kelas ${kelas.tingkat + 1}`);
 
-  // Pisahkan mapel umum dan mulok jika ada
-  const mapelReguler = nilaiList.filter(
-    (n) => !n.mapelNama.toLowerCase().includes("muatan lokal") && !n.mapelNama.toLowerCase().includes("mulok")
-  );
-  const mapelMulok = nilaiList.filter(
-    (n) => n.mapelNama.toLowerCase().includes("muatan lokal") || n.mapelNama.toLowerCase().includes("mulok")
-  );
+  // Pisahkan mapel umum dan mulok secara dinamis
+  const checkIsMulok = (item: NilaiRaporItem) => {
+    if (typeof item.isMulok === "boolean") {
+      return item.isMulok;
+    }
+    const n = (item.mapelNama || "").toLowerCase();
+    const k = (item.mapelKode || "").toLowerCase();
+    return (
+      n.includes("muatan lokal") ||
+      n.includes("mulok") ||
+      n.includes("bahasa daerah") ||
+      n.includes("bahasa simeulue") ||
+      n.includes("simeulue") ||
+      n.includes("bahasa aceh") ||
+      n.includes("bahasa jawa") ||
+      n.includes("bahasa sunda") ||
+      n.includes("budaya aceh") ||
+      k.includes("mulok")
+    );
+  };
 
-  // Data default Kokurikuler (P5)
-  const listKokurikuler =
-    pelengkap.kokurikuler && pelengkap.kokurikuler.length > 0
-      ? pelengkap.kokurikuler
-      : [
-          {
-            tema: "Tema 1 : Kreasi Nusantara ( Membuat Batik Sederhana )",
-            deskripsi: `${siswa.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiataan Membuat Batik Sederhana`,
-          },
-          {
-            tema: "Tema 2 : Peduli Terhadap Lingkungan Sekitar ( Mengolah Sampah Organik Dan Non Organik )",
-            deskripsi: `${siswa.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiataan Mengolah Sampah Organik Dan Non Organik`,
-          },
-          {
-            tema: "Tema 3 : Bangunlah Jiwa Dan Raganya ( Menanam Tanaman Obat Keluarga )",
-            deskripsi: `${siswa.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiataan Menanam Tanaman Obat Keluarga`,
-          },
-        ];
+  const mapelReguler = nilaiList.filter((n) => !checkIsMulok(n));
+  const mapelMulok = nilaiList.filter((n) => checkIsMulok(n));
 
-  // Ekstrakurikuler default
-  const listEkskul =
-    pelengkap.ekskul && pelengkap.ekskul.length > 0
-      ? pelengkap.ekskul
-      : [
-          { nama: "Pramuka", predikat: "Baik", keterangan: "" },
-          { nama: "olahraga", predikat: "Baik", keterangan: "" },
-          { nama: "keagamaan", predikat: "Baik", keterangan: "" },
-        ];
+  // Data Kokurikuler (P5) dinamis
+  const listKokurikuler = pelengkap.kokurikuler || [];
+
+  // Ekstrakurikuler dinamis
+  const listEkskul = (pelengkap.ekskul || []).filter(
+    (e) => e.nama && e.nama.trim() !== ""
+  );
 
   return (
     <div className="rapor-double-page text-black font-sans">
@@ -316,91 +290,107 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
                         {n.nilaiAkhir > 0 ? n.nilaiAkhir : "-"}
                       </td>
                       <td className="border border-black p-0 leading-relaxed text-black">
-                        {/* Sekat Atas: Capaian Sangat Baik */}
-                        <div className="p-2 border-b border-zinc-400">
-                          {capaian.tinggi}
-                        </div>
-                        {/* Sekat Bawah: Capaian Baik */}
-                        <div className="p-2">
-                          {capaian.rendah}
-                        </div>
+                        {capaian && (capaian.tinggi || capaian.rendah) ? (
+                          <>
+                            {capaian.tinggi && (
+                              <div className={`p-2 ${capaian.rendah ? "border-b border-zinc-400" : ""}`}>
+                                {capaian.tinggi}
+                              </div>
+                            )}
+                            {capaian.rendah && (
+                              <div className="p-2">
+                                {capaian.rendah}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="p-2 text-center text-zinc-400 font-mono">-</div>
+                        )}
                       </td>
                     </tr>
                   );
                 })
               )}
 
-              {/* Baris Muatan Lokal (Nomor 9 atau nomor berikutnya) */}
-              <tr>
-                <td className="border border-black py-1 px-1 text-center font-medium">
-                  {mapelReguler.length + 1}
-                </td>
-                <td className="border border-black py-1 px-2.5 font-semibold text-black" colSpan={3}>
-                  Muatan Lokal
-                </td>
-              </tr>
-              {mapelMulok.length > 0 ? (
-                mapelMulok.map((m, mIdx) => {
-                  const capaian = getDeskripsiCapaian(
-                    siswa.nama,
-                    m.mapelNama,
-                    m.nilaiAkhir,
-                    m.capaianKompetensi,
-                    m.capaianTinggi,
-                    m.capaianRendah
-                  );
-                  return (
-                    <tr key={`mulok-${mIdx}`} className="align-top">
-                      <td className="border border-black py-2 px-1 text-center"></td>
-                      <td className="border border-black py-2 px-2.5 pl-5 font-medium text-black">
-                        {m.mapelNama}
-                      </td>
-                      <td className="border border-black py-2 px-1 text-center font-bold">
-                        {m.nilaiAkhir > 0 ? m.nilaiAkhir : "-"}
-                      </td>
-                      <td className="border border-black p-0 leading-relaxed text-black">
-                        <div className="p-2 border-b border-zinc-400">
-                          {capaian.tinggi}
-                        </div>
-                        <div className="p-2">
-                          {capaian.rendah}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr className="align-top">
-                  <td className="border border-black py-2 px-1 text-center"></td>
-                  <td className="border border-black py-2 px-2.5 pl-5 font-medium text-black">
-                    Mulok
-                  </td>
-                  <td className="border border-black py-2 px-1 text-center font-bold">
-                    88
-                  </td>
-                  <td className="border border-black p-0 leading-relaxed text-black">
-                    <div className="p-2 border-b border-zinc-400">
-                      {siswa.nama.toUpperCase()} menunjukkan penguasaan yang sangat baik dalam Melestarikan budaya dan kearifan lokal
-                    </div>
-                    <div className="p-2">
-                      {siswa.nama.toUpperCase()} menunjukkan penguasaan yang baik dalam Melestarikan budaya dan kearifan lokal
-                    </div>
-                  </td>
-                </tr>
+              {/* Baris Muatan Lokal (Hanya ditampilkan jika ada mata pelajaran Muatan Lokal di kelas ini) */}
+              {mapelMulok.length > 0 && (
+                <>
+                  <tr>
+                    <td className="border border-black py-1 px-1 text-center font-medium">
+                      {mapelReguler.length + 1}
+                    </td>
+                    <td className="border border-black py-1 px-2.5 font-semibold text-black" colSpan={3}>
+                      Muatan Lokal
+                    </td>
+                  </tr>
+                  {mapelMulok.map((m, mIdx) => {
+                    const capaian = getDeskripsiCapaian(
+                      siswa.nama,
+                      m.mapelNama,
+                      m.nilaiAkhir,
+                      m.capaianKompetensi,
+                      m.capaianTinggi,
+                      m.capaianRendah
+                    );
+                    return (
+                      <tr key={`mulok-${mIdx}`} className="align-top">
+                        <td className="border border-black py-2 px-1 text-center"></td>
+                        <td className="border border-black py-2 px-2.5 pl-5 font-medium text-black">
+                          {mIdx + 1} {m.mapelNama}
+                        </td>
+                        <td className="border border-black py-2 px-1 text-center font-bold">
+                          {m.nilaiAkhir > 0 ? m.nilaiAkhir : "-"}
+                        </td>
+                        <td className="border border-black p-0 leading-relaxed text-black">
+                          {capaian && (capaian.tinggi || capaian.rendah) ? (
+                            <>
+                              {capaian.tinggi && (
+                                <div className={`p-2 ${capaian.rendah ? "border-b border-zinc-400" : ""}`}>
+                                  {capaian.tinggi}
+                                </div>
+                              )}
+                              {capaian.rendah && (
+                                <div className="p-2">
+                                  {capaian.rendah}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="p-2 text-center text-zinc-400 font-mono">-</div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
               )}
 
-              {/* Baris Total / Footer: Jumlah dan Rata-rata */}
-              <tr className="font-bold bg-white">
+              {/* Baris Total / Footer: Jumlah, Rata-rata, dan Peringkat Dinamis Sesuai Format Resmi */}
+              <tr className="font-bold bg-white text-[10.5px]">
                 <td colSpan={2} className="border border-black py-1.5 px-3 text-left">
                   Jumlah
                 </td>
-                <td className="border border-black py-1.5 px-1 text-center">
-                  {totalNilai > 0 ? totalNilai : "749"}
+                <td className="border border-black py-1.5 px-1 text-center font-bold font-mono">
+                  {totalNilai > 0 ? totalNilai : "-"}
                 </td>
-                <td className="border border-black py-1.5 px-3">
-                  <div className="flex items-center gap-8">
-                    <span>Rata-rata</span>
-                    <span className="font-mono">{rataRata !== "0.00" ? rataRata : "83.22"}</span>
+                <td className="border border-black p-0">
+                  <div className="flex items-stretch h-full text-center divide-x divide-black">
+                    <div className="w-24 py-1.5 px-2 font-bold text-left shrink-0">
+                      Rata-rata
+                    </div>
+                    <div className="w-20 py-1.5 px-2 font-bold font-mono text-center shrink-0">
+                      {validNilai.length > 0 ? rataRata.replace(".", ",") : "-"}
+                    </div>
+                    <div className="flex-1 py-1.5 px-3 font-bold text-center whitespace-nowrap">
+                      {data.rekapitulasi?.peringkat ? (
+                        <span>
+                          Peringkat ke - {data.rekapitulasi.peringkat} dari{" "}
+                          {data.rekapitulasi.totalSiswa || kelas.totalSiswa || 0} siswa
+                        </span>
+                      ) : (
+                        <span>-</span>
+                      )}
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -410,18 +400,15 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* ===================== PAGE BREAK (PEMISAH HALAMAN CETAK) ================== */}
+      {/* ===================== PEMISAH VISUAL ANTAR LEMBAR ======================== */}
       {/* ========================================================================= */}
-      <div
-        className="page-break-divider print:break-after-page print:page-break-after-always my-6 print:my-0"
-        style={{ pageBreakAfter: "always", breakAfter: "page" }}
-      />
+      <div className="my-8 border-b-2 border-dashed border-stone-300 print:hidden" />
 
       {/* ========================================================================= */}
       {/* ============================== LEMBAR 2 ================================= */}
       {/* ========================================================================= */}
       <div className="rapor-paper page-2 bg-white p-8 sm:p-10 max-w-[850px] mx-auto border border-stone-300 shadow-sm print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-[11px] leading-tight mt-6 print:mt-0">
-        {/* 1. EKSTRAKURIKULER */}
+        {/* 1. EKSTRAKURIKULER DINAMIS */}
         <div className="mb-4 space-y-1">
           <h2 className="text-[11.5px] font-bold text-black">
             Ekstrakurikuler
@@ -434,47 +421,62 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
               </tr>
             </thead>
             <tbody>
-              {listEkskul.map((e, idx) => (
-                <tr key={idx} className="h-6">
-                  <td className="border border-black py-1 px-3 font-medium text-black">
-                    {e.nama}
-                  </td>
-                  <td className="border border-black py-1 px-3 text-black">
-                    {e.predikat || "Baik"}
-                  </td>
+              {listEkskul.length === 0 ? (
+                <tr className="h-6">
+                  <td className="border border-black py-1 px-3 text-center">-</td>
+                  <td className="border border-black py-1 px-3 text-center">-</td>
+                </tr>
+              ) : (
+                listEkskul.map((e, idx) => (
+                  <tr key={idx} className="h-6">
+                    <td className="border border-black py-1 px-3 font-medium text-black">
+                      {e.nama}
+                    </td>
+                    <td className="border border-black py-1 px-3 text-black">
+                      {e.predikat || "-"}
+                    </td>
+                  </tr>
+                ))
+              )}
+              {/* Spacer rows agar tinggi tabel proporsional saat cetak A4 */}
+              {Array.from({
+                length: Math.max(0, 3 - Math.max(1, listEkskul.length)),
+              }).map((_, i) => (
+                <tr key={`spacer-${i}`} className="h-5">
+                  <td className="border border-black py-1 px-3">&nbsp;</td>
+                  <td className="border border-black py-1 px-3">&nbsp;</td>
                 </tr>
               ))}
-              {/* Spacer row jika perlu */}
-              {listEkskul.length < 4 && (
-                <tr className="h-5">
-                  <td className="border border-black py-1 px-3">&nbsp;</td>
-                  <td className="border border-black py-1 px-3">&nbsp;</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
 
-        {/* 2. KOKURIKULER (P5) */}
+        {/* 2. KOKURIKULER (P5) DINAMIS */}
         <div className="mb-4 space-y-1">
           <h2 className="text-[11.5px] font-bold text-black">
             Kokurikuler
           </h2>
           <div className="border border-black text-[10.5px]">
-            {listKokurikuler.map((k, idx) => (
-              <div key={idx} className={idx > 0 ? "border-t border-black" : ""}>
-                <div className="bg-[#e2e2e2] py-1 px-3 font-semibold text-black border-b border-black">
-                  {k.tema}
-                </div>
-                <div className="p-2.5 leading-relaxed text-black">
-                  {k.deskripsi}
-                </div>
+            {listKokurikuler.length === 0 ? (
+              <div className="p-3 text-center italic text-zinc-500">
+                -
               </div>
-            ))}
+            ) : (
+              listKokurikuler.map((k, idx) => (
+                <div key={idx} className={idx > 0 ? "border-t border-black" : ""}>
+                  <div className="bg-[#e2e2e2] py-1 px-3 font-semibold text-black border-b border-black">
+                    {k.tema}
+                  </div>
+                  <div className="p-2.5 leading-relaxed text-black">
+                    {k.deskripsi}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* 3. 7 KEBIASAAN ANAK INDONESIA HEBAT */}
+        {/* 3. 7 KEBIASAAN ANAK INDONESIA HEBAT DINAMIS */}
         <div className="mb-4 space-y-1">
           <h2 className="text-[11.5px] font-bold text-black">
             7 Kebiasaan Anak Indonesia Hebat
@@ -485,8 +487,8 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
           </div>
         </div>
 
-        {/* 4. SARAN-SARAN / CATATAN WALI KELAS */}
-        <div className="mb-5 space-y-1">
+        {/* 4. SARAN-SARAN / CATATAN WALI KELAS DINAMIS */}
+        <div className="mb-4 space-y-1">
           <h2 className="text-[11.5px] font-bold text-black">
             Saran-saran / Catatan Wali Kelas
           </h2>
@@ -496,10 +498,14 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
           </div>
         </div>
 
-        {/* 5. KETIDAKHADIRAN & KEPUTUSAN KELULUSAN (2 KOLOM SEJAJAR) */}
-        <div className="grid grid-cols-12 gap-6 mb-8 items-start">
+        {/* 5. KETIDAKHADIRAN & KEPUTUSAN KELULUSAN / KENAIKAN KELAS */}
+        <div
+          className={`grid ${
+            isSemesterGenap ? "grid-cols-12 gap-6" : "grid-cols-1 max-w-xs"
+          } mb-6 print:mb-4 items-start`}
+        >
           {/* Kolom Kiri: Ketidakhadiran */}
-          <div className="col-span-6">
+          <div className={isSemesterGenap ? "col-span-6" : "w-full"}>
             <table className="w-full border-collapse border border-black text-[10.5px]">
               <thead>
                 <tr className="bg-[#e2e2e2] text-black font-bold text-center">
@@ -541,30 +547,32 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
             </table>
           </div>
 
-          {/* Kolom Kanan: LULUS/TIDAK LULUS (atau Kenaikan Kelas) */}
-          <div className="col-span-6">
-            <div className="border border-black">
-              <div className="bg-[#e2e2e2] border-b border-black py-1 px-3 text-center font-bold text-[10.5px]">
-                {isKelasAkhir ? "LULUS/TIDAK LULUS" : "KENAIKAN KELAS"}
-              </div>
-              <div className="h-[96px] flex items-center justify-center">
-                <span className="text-sm font-bold tracking-wider text-black">
-                  {statusHasil}
-                </span>
+          {/* Kolom Kanan: LULUS/TIDAK LULUS (atau Kenaikan Kelas) - HANYA ADA DI SEMESTER GENAP */}
+          {isSemesterGenap && (
+            <div className="col-span-6">
+              <div className="border border-black">
+                <div className="bg-[#e2e2e2] border-b border-black py-1 px-3 text-center font-bold text-[10.5px]">
+                  {isKelasAkhir ? "LULUS/TIDAK LULUS" : "KENAIKAN KELAS"}
+                </div>
+                <div className="h-[96px] flex items-center justify-center">
+                  <span className="text-sm font-bold tracking-wider text-black">
+                    {statusHasil}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 6. TANDA TANGAN RESMI (SEGITIGA KHAS RAPOR) */}
-        <div className="text-[11px] font-sans text-black pt-2">
+        <div className="text-[11px] font-sans text-black pt-1">
           {/* Baris Atas: Orang Tua (Kiri) & Guru Kelas (Kanan) */}
-          <div className="flex justify-between items-start mb-8">
+          <div className="flex justify-between items-start mb-6 print:mb-4">
             {/* Orang Tua / Wali */}
             <div className="text-center w-56">
               <p className="mb-1">Mengetahui :</p>
               <p className="font-semibold">Orang Tua / Wali Siswa</p>
-              <div className="h-20" />
+              <div className="h-16 print:h-12" />
               <p className="border-b border-black inline-block px-12"></p>
             </div>
 
@@ -575,12 +583,12 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
                 {periode.tanggalCetak || "20 Juni 2026"}
               </p>
               <p className="font-semibold">Guru Kelas {kelas.nama}</p>
-              <div className="h-20" />
+              <div className="h-16 print:h-12" />
               <p className="font-bold underline uppercase">
-                {waliKelas.nama || "SANTI MARIA, S.Pd"}
+                {waliKelas.nama || "-"}
               </p>
               <p className="text-[10px] mt-0.5">
-                NIP. {waliKelas.nip || "198201022008032001"}
+                {waliKelas.nip ? `NIP. ${waliKelas.nip}` : "NIP. -"}
               </p>
             </div>
           </div>
@@ -591,12 +599,12 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
             <p className="font-semibold">
               Kepala {sekolah.nama || "SDN 7 Simeulue Timur"}
             </p>
-            <div className="h-20" />
+            <div className="h-16 print:h-12" />
             <p className="font-bold underline uppercase">
               {sekolah.kepalaSekolah || "SYARIFAH RADHIAH, S.Pd.I"}
             </p>
             <p className="text-[10px] mt-0.5">
-              NIP. {sekolah.nipKepsek || "197110201994102001"}
+              {sekolah.nipKepsek ? `NIP. ${sekolah.nipKepsek}` : "NIP. -"}
             </p>
           </div>
         </div>

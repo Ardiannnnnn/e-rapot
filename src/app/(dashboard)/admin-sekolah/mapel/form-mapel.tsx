@@ -7,6 +7,7 @@ export interface MapelItem {
   id: string;
   kode: string;
   nama: string;
+  isMulok?: boolean;
   totalPengampu: number;
   totalTP: number;
 }
@@ -19,10 +20,12 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [kode, setKode] = useState("");
   const [nama, setNama] = useState("");
+  const [isMulok, setIsMulok] = useState(false);
 
   const [editingMapel, setEditingMapel] = useState<MapelItem | null>(null);
   const [editKode, setEditKode] = useState("");
   const [editNama, setEditNama] = useState("");
+  const [editIsMulok, setEditIsMulok] = useState(false);
 
   const filteredMapel = initialMapelList.filter(
     (m) =>
@@ -35,11 +38,12 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
     setMessage(null);
 
     startTransition(async () => {
-      const res = await createMapelAction({ kode, nama });
+      const res = await createMapelAction({ kode, nama, isMulok });
       if (res.success) {
         setMessage({ type: "success", text: res.message });
         setKode("");
         setNama("");
+        setIsMulok(false);
         setIsAddModalOpen(false);
       } else {
         setMessage({ type: "error", text: res.message });
@@ -53,7 +57,12 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
     setMessage(null);
 
     startTransition(async () => {
-      const res = await updateMapelAction({ id: editingMapel.id, kode: editKode, nama: editNama });
+      const res = await updateMapelAction({
+        id: editingMapel.id,
+        kode: editKode,
+        nama: editNama,
+        isMulok: editIsMulok,
+      });
       if (res.success) {
         setMessage({ type: "success", text: res.message });
         setEditingMapel(null);
@@ -151,7 +160,19 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
                     </td>
 
                     <td className="px-4 py-3.5">
-                      <span className="font-semibold text-zinc-900 text-sm">{m.nama}</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+                        <span className="font-semibold text-zinc-900 text-sm">{m.nama}</span>
+                        {m.isMulok ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300 w-fit">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            Muatan Lokal (Mulok)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-stone-100 text-zinc-600 w-fit">
+                            Mapel Wajib
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-4 py-3.5 text-center">
@@ -174,6 +195,7 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
                             setEditingMapel(m);
                             setEditKode(m.kode);
                             setEditNama(m.nama);
+                            setEditIsMulok(!!m.isMulok);
                           }}
                           className="p-1.5 rounded-lg border border-stone-200 text-zinc-600 hover:text-zinc-900 hover:bg-stone-100 transition"
                           title="Ubah data mapel"
@@ -219,15 +241,58 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  Kategori / Jenis Mata Pelajaran <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsMulok(false)}
+                    className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 ${
+                      !isMulok
+                        ? "border-[#1b4332] bg-emerald-50/60 ring-1 ring-[#1b4332]"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900">Mapel Wajib / Umum</span>
+                      {!isMulok && <span className="text-xs font-bold text-[#1b4332]">✓</span>}
+                    </div>
+                    <span className="text-[10.5px] text-zinc-500 leading-tight">
+                      Kurikulum nasional standar
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsMulok(true)}
+                    className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 ${
+                      isMulok
+                        ? "border-amber-500 bg-amber-50/70 ring-1 ring-amber-500"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900">Muatan Lokal (Mulok)</span>
+                      {isMulok && <span className="text-xs font-bold text-amber-700">✓</span>}
+                    </div>
+                    <span className="text-[10.5px] text-amber-700/80 leading-tight">
+                      Bhs. Simeulue, Daerah, dsb.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Kode Singkat Mapel (Contoh: MAT, IPA, ROBOTIK) <span className="text-rose-500">*</span>
+                  Kode Singkat Mapel (Contoh: {isMulok ? "SIMEULUE, ACEH" : "MAT, IPA"}) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={kode}
                   onChange={(e) => setKode(e.target.value.toUpperCase())}
-                  placeholder="KODING"
+                  placeholder={isMulok ? "SIMEULUE" : "KODING"}
                   className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs font-mono font-bold text-zinc-900 uppercase focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
                 />
               </div>
@@ -241,7 +306,7 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
                   required
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
-                  placeholder="Contoh: Koding & Robotika"
+                  placeholder={isMulok ? "Contoh: Bahasa Simeulue" : "Contoh: Koding & Robotika"}
                   className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
                 />
               </div>
@@ -285,6 +350,49 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
             </div>
 
             <form onSubmit={handleUpdate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  Kategori / Jenis Mata Pelajaran <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditIsMulok(false)}
+                    className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 ${
+                      !editIsMulok
+                        ? "border-[#1b4332] bg-emerald-50/60 ring-1 ring-[#1b4332]"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900">Mapel Wajib / Umum</span>
+                      {!editIsMulok && <span className="text-xs font-bold text-[#1b4332]">✓</span>}
+                    </div>
+                    <span className="text-[10.5px] text-zinc-500 leading-tight">
+                      Kurikulum nasional standar
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditIsMulok(true)}
+                    className={`p-3 rounded-xl border text-left transition flex flex-col gap-1 ${
+                      editIsMulok
+                        ? "border-amber-500 bg-amber-50/70 ring-1 ring-amber-500"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900">Muatan Lokal (Mulok)</span>
+                      {editIsMulok && <span className="text-xs font-bold text-amber-700">✓</span>}
+                    </div>
+                    <span className="text-[10.5px] text-amber-700/80 leading-tight">
+                      Bhs. Simeulue, Daerah, dsb.
+                    </span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
                   Kode Mapel <span className="text-rose-500">*</span>
