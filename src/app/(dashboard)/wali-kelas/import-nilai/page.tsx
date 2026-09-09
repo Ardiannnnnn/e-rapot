@@ -60,13 +60,6 @@ export default async function WaliKelasImportNilaiPage() {
     },
   });
 
-  const mapelList = pengampuList.map((p) => ({
-    id: p.mapel.id,
-    kode: p.mapel.kode,
-    nama: p.mapel.nama,
-    guruNama: p.guru.name,
-  }));
-
   // 4. Ambil seluruh siswa di rombel ini
   const siswaList = await prisma.siswa.findMany({
     where: { kelasId: kelas.id },
@@ -79,6 +72,33 @@ export default async function WaliKelasImportNilaiPage() {
     },
     orderBy: { nama: "asc" },
   });
+
+  // 5. Hitung jumlah siswa yang sudah memiliki nilai per mapel di kelas ini
+  const nilaiCounts = await prisma.nilai.groupBy({
+    by: ["mapelId"],
+    where: {
+      siswa: { kelasId: kelas.id },
+      tahunAjaran,
+      semester,
+      nilaiAkhir: { gt: 0 },
+    },
+    _count: {
+      siswaId: true,
+    },
+  });
+
+  const countMap = new Map<string, number>(
+    nilaiCounts.map((nc) => [nc.mapelId, nc._count.siswaId])
+  );
+
+  const mapelList = pengampuList.map((p) => ({
+    id: p.mapel.id,
+    kode: p.mapel.kode,
+    nama: p.mapel.nama,
+    guruNama: p.guru.name,
+    terisiCount: countMap.get(p.mapel.id) || 0,
+    totalSiswa: siswaList.length,
+  }));
 
   return (
     <FormImportNilaiClient

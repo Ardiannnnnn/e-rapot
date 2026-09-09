@@ -7,10 +7,8 @@ import {
   CheckCircle2Icon,
   AlertCircleIcon,
   ClockIcon,
-  PrinterIcon,
   ArrowRightIcon,
-  FileSpreadsheetIcon,
-  SmileIcon,
+  SmileIcon
 } from "@/components/shared/icons";
 
 export default async function WaliKelasDashboardPage() {
@@ -147,14 +145,14 @@ export default async function WaliKelasDashboardPage() {
       {/* Banner Sapaan Wali Kelas */}
       <div className="rounded-2xl bg-gradient-to-r from-[#1b4332] to-[#143225] p-6 sm:p-8 text-white shadow-xs relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="w-full">
+            <div className="flex flex-wrap w-full items-center justify-between gap-2 mb-3">
               <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-medium backdrop-blur-sm font-mono">
                 Portal Wali Kelas • Kelas {kelas.nama} (Tingkat {kelas.tingkat})
               </span>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-xs font-medium">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                TA {tahunAjaran} Semester {semester === 1 ? "Ganjil" : "Genap"}
+              <span className="inline-flex items-center gap-1.5 font-mono font-semibold">
+                <span className="h-2 w-2 rounded-full bg-red-400 animate-pulse"></span>
+                Semester Aktif
               </span>
               {isKunci && (
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/30 text-xs font-semibold">
@@ -162,22 +160,14 @@ export default async function WaliKelasDashboardPage() {
                 </span>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
-              Halo, {user.name}
-            </h1>
-            <p className="mt-1 text-sm text-emerald-100/90 max-w-xl">
-              Pantau progres kelengkapan nilai dari dewan guru pengampu, lengkapi presensi & catatan karakter, serta terbitkan rapor resmi Kurikulum Merdeka.
-            </p>
-          </div>
-
-          <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 border-t sm:border-t-0 pt-3 sm:pt-0 border-white/10">
-            <Link
-              href="/wali-kelas/cetak"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-400 text-emerald-950 font-semibold text-sm hover:bg-emerald-300 transition-all shadow-md active:scale-95"
-            >
-              <PrinterIcon className="h-4 w-4" />
-              Cetak Rapor Kelas
-            </Link>
+            <div className="w-full flex justify-between">
+              <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
+                Halo, {user.name}
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-xs font-medium">
+                TA {tahunAjaran} Semester {semester === 1 ? "Ganjil" : "Genap"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -382,13 +372,12 @@ export default async function WaliKelasDashboardPage() {
                       <div className="flex items-center gap-2">
                         <div className="h-2 flex-1 bg-stone-100 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              m.isComplete
-                                ? "bg-emerald-700"
-                                : m.percent > 0
+                            className={`h-full rounded-full transition-all duration-300 ${m.isComplete
+                              ? "bg-emerald-700"
+                              : m.percent > 0
                                 ? "bg-amber-700"
                                 : "bg-stone-200"
-                            }`}
+                              }`}
                             style={{ width: `${m.percent}%` }}
                           />
                         </div>

@@ -1,69 +1,7 @@
 import React from "react";
-import { EkskulItem } from "@/actions/wali-kelas";
+import { NilaiRaporItem, LembarRaporData } from "@/types/wali-kelas/cetak";
 
-export interface NilaiRaporItem {
-  mapelKode: string;
-  mapelNama: string;
-  isMulok?: boolean;
-  nilaiAkhir: number;
-  capaianKompetensi?: string;
-  capaianTinggi?: string;
-  capaianRendah?: string;
-}
-
-export interface LembarRaporData {
-  sekolah: {
-    nama: string;
-    npsn: string;
-    alamat?: string | null;
-    kepalaSekolah?: string | null;
-    nipKepsek?: string | null;
-    kabupatenKota?: string | null;
-    kecamatan?: string | null;
-    provinsi?: string | null;
-  };
-  siswa: {
-    id: string;
-    nama: string;
-    nisn: string;
-    nis: string;
-    jenisKelamin: string;
-  };
-  kelas: {
-    nama: string;
-    tingkat: number;
-    fase: string;
-    totalSiswa?: number;
-  };
-  periode: {
-    tahunAjaran: string;
-    semester: number;
-    tempatCetak: string;
-    tanggalCetak: string;
-  };
-  waliKelas: {
-    nama: string;
-    nip?: string | null;
-  };
-  nilaiList: NilaiRaporItem[];
-  pelengkap: {
-    sakit: number;
-    izin: number;
-    alpa: number;
-    catatanWali?: string | null;
-    ekskul?: EkskulItem[];
-    kokurikuler?: {
-      tema: string;
-      deskripsi: string;
-    }[];
-    kebiasaanKarakter?: string | null;
-    statusKelulusan?: string | null; // "LULUS" atau "Naik ke Kelas ..."
-  };
-  rekapitulasi?: {
-    peringkat?: number;
-    totalSiswa?: number;
-  };
-}
+export type { NilaiRaporItem, LembarRaporData };
 
 // Helper untuk deskripsi capaian kompetensi ganda (Sekat Sangat Baik & Baik)
 function getDeskripsiCapaian(

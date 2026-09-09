@@ -3,19 +3,10 @@
 import { useState } from "react";
 import { PrinterIcon, UsersIcon, UserIcon, ArrowLeftIcon, FileDownIcon } from "@/components/shared/icons";
 import Link from "next/link";
-import LembarRapor, { LembarRaporData } from "./lembar-rapor";
-
-interface CetakRaporClientProps {
-  sekolahNama: string;
-  kelasNama: string;
-  tingkat: number;
-  tahunAjaran: string;
-  semester: number;
-  raporList: LembarRaporData[];
-}
+import LembarRapor from "./lembar-rapor";
+import { CetakRaporClientProps, LembarRaporData } from "@/types/wali-kelas/cetak";
 
 export default function CetakRaporClient({
-  sekolahNama,
   kelasNama,
   tingkat,
   tahunAjaran,
@@ -43,13 +34,6 @@ export default function CetakRaporClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Link
-                  href="/wali-kelas"
-                  className="inline-flex items-center gap-1 text-xs text-emerald-200 hover:text-white transition-colors"
-                >
-                  <ArrowLeftIcon className="h-3.5 w-3.5" />
-                  Kembali ke Dashboard
-                </Link>
                 <span className="text-emerald-400">•</span>
                 <span className="text-xs font-mono text-emerald-200">
                   Kelas {kelasNama} (Tingkat {tingkat})

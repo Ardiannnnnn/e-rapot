@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import DaftarSiswaClient from "./daftar-siswa";
 import { AlertCircleIcon } from "@/components/shared/icons";
+import { SiswaItem } from "@/types/wali-kelas/siswa";
 
 export default async function WaliKelasSiswaPage() {
   const user = await requireUser();
@@ -80,7 +81,8 @@ export default async function WaliKelasSiswaPage() {
     orderBy: { nama: "asc" },
   });
 
-  const siswaList = rawSiswaList.map((s) => {
+  // 5. Olah data nilai per siswa
+  const siswaList: SiswaItem[] = rawSiswaList.map((s) => {
     const nilaiFormatted = s.nilai.map((n) => ({
       id: n.id,
       mapelId: n.mapelId,

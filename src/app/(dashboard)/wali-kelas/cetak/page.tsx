@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import CetakRaporClient from "./cetak-rapor-client";
 import { AlertCircleIcon } from "@/components/shared/icons";
-import { LembarRaporData, NilaiRaporItem } from "./lembar-rapor";
+import { LembarRaporData, NilaiRaporItem } from "@/types/wali-kelas/cetak";
 import { EkskulItem, KokurikulerItem } from "@/actions/wali-kelas";
 
 function getFaseKurikulumMerdeka(tingkat: number): string {

@@ -133,13 +133,13 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
       groupLabel: "Wali Kelas",
       items: [
         {
-          title: "Kelengkapan Nilai",
+          title: "Halaman Utama dan Mata Pelajaran",
           href: "/wali-kelas",
           icon: LayoutDashboardIcon,
           allowedRoles: ["WALI_KELAS"],
         },
         {
-          title: "Peserta Didik Binaan",
+          title: "Siswa ",
           href: "/wali-kelas/siswa",
           icon: UsersIcon,
           allowedRoles: ["WALI_KELAS"],
@@ -153,7 +153,7 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           allowedRoles: ["WALI_KELAS"],
         },
         {
-          title: "Presensi & Ekskul",
+          title: "Kelengkapan Data",
           href: "/wali-kelas/pelengkap",
           icon: ClipboardListIcon,
           badge: "S/I/A",

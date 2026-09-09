@@ -5,52 +5,11 @@ import {
   SearchIcon,
   EyeIcon,
   XIcon,
-  AwardIcon,
-  CheckCircle2Icon,
-  AlertCircleIcon,
-  FileSpreadsheetIcon,
-  PrinterIcon,
+  PrinterIcon
 } from "@/components/shared/icons";
 import Link from "next/link";
-
-interface NilaiItem {
-  id: string;
-  mapelId: string;
-  mapelKode: string;
-  mapelNama: string;
-  nilaiTugas: number;
-  nilaiUTS: number;
-  nilaiUAS: number;
-  nilaiAkhir: number;
-  catatan?: string | null;
-}
-
-interface SiswaItem {
-  id: string;
-  nisn: string;
-  nis: string;
-  nama: string;
-  jenisKelamin: string;
-  alamat?: string | null;
-  nilai: NilaiItem[];
-  presensi: {
-    sakit: number;
-    izin: number;
-    alpa: number;
-    catatanWali?: string | null;
-  } | null;
-  rataRata: number;
-  mapelDinilaiCount: number;
-  totalMapel: number;
-}
-
-interface DaftarSiswaProps {
-  kelasNama: string;
-  tingkat: number;
-  tahunAjaran: string;
-  semester: number;
-  siswaList: SiswaItem[];
-}
+import { SiswaItem, DaftarSiswaProps } from "@/types/wali-kelas/siswa";
+import { TablePaginationInfo, TablePaginationNav } from "@/components/shared/table-pagination";
 
 export default function DaftarSiswaClient({
   kelasNama,
@@ -62,6 +21,8 @@ export default function DaftarSiswaClient({
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState("ALL");
   const [selectedSiswa, setSelectedSiswa] = useState<SiswaItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const filteredList = siswaList.filter((s) => {
     const matchSearch =
@@ -72,6 +33,11 @@ export default function DaftarSiswaClient({
       genderFilter === "ALL" || s.jenisKelamin === genderFilter;
     return matchSearch && matchGender;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedList = filteredList.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="space-y-6">
@@ -85,9 +51,6 @@ export default function DaftarSiswaClient({
             <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
               Data Siswa & Rekap Capaian Kelas
             </h1>
-            <p className="mt-1 text-sm text-emerald-100/90">
-              Tahun Ajaran {tahunAjaran} • Semester {semester === 1 ? "Ganjil" : "Genap"} • Total {siswaList.length} Siswa
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -109,53 +72,88 @@ export default function DaftarSiswaClient({
       </div>
 
       {/* Filter & Pencarian Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-600" />
-          <input
-            type="text"
-            placeholder="Cari nama, NISN, atau NIS..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-xl border border-stone-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#1b4332]"
-          />
-        </div>
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <div className="relative w-full sm:w-80">
+            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Cari nama, NISN, atau NIS..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-10 pr-9 py-2 text-xs rounded-xl border border-stone-200 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#1b4332] shadow-2xs font-medium"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setCurrentPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-medium text-zinc-600">Gender:</span>
-          <div className="inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1">
-            <button
-              onClick={() => setGenderFilter("ALL")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                genderFilter === "ALL"
-                  ? "bg-white text-zinc-900 shadow-xs"
-                  : "text-zinc-600 hover:text-zinc-900"
-              }`}
-            >
-              Semua ({siswaList.length})
-            </button>
-            <button
-              onClick={() => setGenderFilter("L")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                genderFilter === "L"
-                  ? "bg-white text-blue-700 shadow-xs"
-                  : "text-zinc-600 hover:text-blue-700"
-              }`}
-            >
-              Laki-laki ({siswaList.filter((s) => s.jenisKelamin === "L").length})
-            </button>
-            <button
-              onClick={() => setGenderFilter("P")}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                genderFilter === "P"
-                  ? "bg-white text-rose-700 shadow-xs"
-                  : "text-zinc-600 hover:text-rose-700"
-              }`}
-            >
-              Perempuan ({siswaList.filter((s) => s.jenisKelamin === "P").length})
-            </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-zinc-600">Gender:</span>
+            <div className="inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1">
+              <button
+                onClick={() => {
+                  setGenderFilter("ALL");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  genderFilter === "ALL"
+                    ? "bg-white text-zinc-900 shadow-xs"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Semua ({siswaList.length})
+              </button>
+              <button
+                onClick={() => {
+                  setGenderFilter("L");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  genderFilter === "L"
+                    ? "bg-white text-blue-700 shadow-xs"
+                    : "text-zinc-600 hover:text-blue-700"
+                }`}
+              >
+                L ({siswaList.filter((s) => s.jenisKelamin === "L").length})
+              </button>
+              <button
+                onClick={() => {
+                  setGenderFilter("P");
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  genderFilter === "P"
+                    ? "bg-white text-rose-700 shadow-xs"
+                    : "text-zinc-600 hover:text-rose-700"
+                }`}
+              >
+                P ({siswaList.filter((s) => s.jenisKelamin === "P").length})
+              </button>
+            </div>
           </div>
         </div>
+
+        <TablePaginationInfo
+          currentPage={safeCurrentPage}
+          pageSize={pageSize}
+          totalItems={filteredList.length}
+          onPageSizeChange={(size) => setPageSize(size)}
+          onPageChange={(page) => setCurrentPage(page)}
+          label="peserta didik"
+        />
       </div>
 
       {/* Tabel Peserta Didik */}
@@ -175,20 +173,20 @@ export default function DaftarSiswaClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
-              {filteredList.length === 0 ? (
+              {paginatedList.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-zinc-600 text-xs">
                     Tidak ditemukan peserta didik yang sesuai kriteria pencarian.
                   </td>
                 </tr>
               ) : (
-                filteredList.map((s, idx) => {
+                paginatedList.map((s, idx) => {
                   const isAllGraded =
                     s.totalMapel > 0 && s.mapelDinilaiCount === s.totalMapel;
                   return (
                     <tr key={s.id} className="hover:bg-stone-50/70 transition-colors">
                       <td className="py-3.5 px-6 text-xs text-zinc-600 font-mono">
-                        {idx + 1}
+                        {startIndex + idx + 1}
                       </td>
                       <td className="py-3.5 px-6">
                         <span className="font-semibold text-zinc-900 block">
@@ -277,6 +275,14 @@ export default function DaftarSiswaClient({
           </table>
         </div>
       </div>
+
+      {/* Centered Pagination Nav */}
+      <TablePaginationNav
+        currentPage={safeCurrentPage}
+        pageSize={pageSize}
+        totalItems={filteredList.length}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
 
       {/* Modal Dialog Detail Nilai Siswa */}
       {selectedSiswa && (

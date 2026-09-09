@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import {
   FileSpreadsheetIcon,
@@ -13,43 +14,58 @@ import {
 } from "@/components/shared/icons";
 import { importNilaiExcelAction, ItemNilaiImport } from "@/actions/wali-kelas-import";
 import Link from "next/link";
+import {
+  MapelImportItem as MapelItem,
+  SiswaImportItem as SiswaItem,
+  FormImportNilaiProps,
+  ParsedRow,
+} from "@/types/wali-kelas/import-nilai";
 
-interface MapelItem {
-  id: string;
-  kode: string;
-  nama: string;
-  guruNama?: string;
-}
+// Helper untuk mendeteksi mata pelajaran dari awalan nama file Excel
+export function detectMapelFromFilename(
+  fileName: string,
+  mapelList: MapelItem[]
+): MapelItem | null {
+  if (!fileName || !mapelList || mapelList.length === 0) return null;
 
-interface SiswaItem {
-  id: string;
-  nisn: string;
-  nis: string;
-  nama: string;
-  jenisKelamin: string;
-}
+  // Hapus path folder jika ada (e.g. C:\fakepath\...)
+  const baseName = fileName.split(/[\/\\]/).pop() || fileName;
 
-interface FormImportNilaiProps {
-  kelasId: string;
-  kelasNama: string;
-  tingkat: number;
-  tahunAjaran: string;
-  semester: number;
-  mapelList: MapelItem[];
-  siswaList: SiswaItem[];
-}
+  // Hapus ekstensi .xlsx, .xls, .csv
+  let clean = baseName.replace(/\.(xlsx|xls|csv)$/i, "").trim();
 
-interface ParsedRow {
-  rowNum: number;
-  nisn: string;
-  namaExcel: string;
-  tugas: number;
-  uts: number;
-  uas: number;
-  nilaiAkhir: number;
-  catatan: string;
-  isValid: boolean;
-  matchedSiswaNama?: string;
+  // Hapus prefix umum template jika ada: "Template_Nilai_", "Template Nilai -", "Template_", "Nilai_"
+  clean = clean.replace(/^(template[_\-\s]*(nilai)?|nilai)[_\-\s]+/i, "").trim();
+
+  // Urutkan kode dari karakter terpanjang ke terpendek agar kode spesifik dicocokkan duluan
+  const sorted = [...mapelList].sort(
+    (a, b) => (b.kode?.length || 0) - (a.kode?.length || 0)
+  );
+
+  // 1. Cocokkan awalan nama file dengan kode mapel (case-insensitive)
+  // Diikuti pemisah (_, -, spasi, ., atau langsung 'kelas' / angka)
+  for (const m of sorted) {
+    if (!m.kode) continue;
+    const safeKode = m.kode.replace(/[^a-zA-Z0-9]/g, "");
+    if (!safeKode) continue;
+
+    const regex = new RegExp(`^${safeKode}([_\-\\s\\.]|$|(?=kelas)|(?=[0-9]))`, "i");
+    if (regex.test(clean)) {
+      return m;
+    }
+  }
+
+  // 2. Cocokkan jika awalan menggunakan nama lengkap mapel (misal: "Bahasa_Indonesia_Kelas_2A")
+  for (const m of sorted) {
+    if (!m.nama) continue;
+    const cleanNama = m.nama.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const cleanLower = clean.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (cleanNama.length >= 3 && cleanLower.startsWith(cleanNama)) {
+      return m;
+    }
+  }
+
+  return null;
 }
 
 export default function FormImportNilaiClient({
@@ -61,12 +77,20 @@ export default function FormImportNilaiClient({
   mapelList,
   siswaList,
 }: FormImportNilaiProps) {
+  const router = useRouter();
+  const [currentMapelList, setCurrentMapelList] = useState<MapelItem[]>(mapelList);
   const [selectedMapelId, setSelectedMapelId] = useState<string>(
     mapelList[0]?.id || ""
   );
+
+  useEffect(() => {
+    setCurrentMapelList(mapelList);
+  }, [mapelList]);
+
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -82,7 +106,7 @@ export default function FormImportNilaiClient({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedMapel = mapelList.find((m) => m.id === selectedMapelId);
+  const selectedMapel = currentMapelList.find((m) => m.id === selectedMapelId) || mapelList[0];
 
   // 1. Download Template Excel Khusus Kelas Ini
   const handleDownloadTemplate = () => {
@@ -131,9 +155,10 @@ export default function FormImportNilaiClient({
     XLSX.utils.book_append_sheet(wb, ws, "Nilai Siswa");
 
     const cleanTA = tahunAjaran.replace("/", "-");
-    const safeMapelKode = selectedMapel.kode.replace(/[^a-zA-Z0-9]/g, "");
+    const safeMapelKode = selectedMapel.kode.toUpperCase().replace(/[^a-zA-Z0-9]/g, "");
     const safeKelas = kelasNama.replace(/[^a-zA-Z0-9]/g, "");
-    const filename = `Template_Nilai_${safeMapelKode}_Kelas_${safeKelas}_TA_${cleanTA}_Sem_${semester}.xlsx`;
+    // Format nama file baku diawali kode mapel sesuai aturan
+    const filename = `${safeMapelKode}_Kelas_${safeKelas}_TA_${cleanTA}_Sem_${semester}.xlsx`;
 
     XLSX.writeFile(wb, filename);
   };
@@ -144,6 +169,46 @@ export default function FormImportNilaiClient({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Aturan 1: Validasi Awalan Nama File (Harus diawali Kode Mapel yang sah di kelas ini)
+    const detectedMapel = detectMapelFromFilename(file.name, currentMapelList);
+    if (!detectedMapel) {
+      const validCodes = currentMapelList.map((m) => `${m.kode} (${m.nama})`).join(", ");
+      setWarningModal({
+        title: "Format Nama File Ditolak",
+        text: `File "${file.name}" tidak dapat diproses karena nama file tidak diawali dengan kode mata pelajaran yang sah untuk Kelas ${kelasNama}.`,
+        type: "error",
+        solution: `Sistem mewajibkan format nama file diawali dengan kode mata pelajaran agar nilai tidak salah tertimpa ke mata pelajaran lain. Contoh penamaan yang benar: "BIN_Kelas_${kelasNama}.xlsx" atau "IPAS_Kelas_${kelasNama}.xlsx".\n\nDaftar kode mapel yang berlaku di Kelas ${kelasNama}: ${validCodes}.`,
+        showDownloadTemplate: true,
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setParsedRows([]);
+      setFileName("");
+      return;
+    }
+
+    // Aturan 2: Validasi Kesesuaian Kelas pada Nama File
+    const kelasRegex = /kelas[_\-\s]*([0-9]+[a-zA-Z]*)/i;
+    const matchKelas = file.name.match(kelasRegex);
+    const currentKelasClean = kelasNama.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    if (matchKelas && matchKelas[1]) {
+      const fileKelasClean = matchKelas[1].replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+      if (fileKelasClean !== currentKelasClean) {
+        setWarningModal({
+          title: "File Rombel Tidak Cocok",
+          text: `File "${file.name}" terdeteksi untuk Kelas ${matchKelas[1].toUpperCase()}, sedangkan rombel yang sedang Anda kelola adalah Kelas ${kelasNama}.`,
+          type: "error",
+          solution: `Harap unggah file nilai khusus rombel Kelas ${kelasNama}. Anda dapat mengunduh format template resmi khusus Kelas ${kelasNama} pada Langkah 1.`,
+          showDownloadTemplate: true,
+        });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setParsedRows([]);
+        setFileName("");
+        return;
+      }
+    }
+
+    // Otomatis sinkronkan target mata pelajaran sesuai dengan file yang diunggah
+    setSelectedMapelId(detectedMapel.id);
     setFileName(file.name);
 
     const reader = new FileReader();
@@ -307,6 +372,11 @@ export default function FormImportNilaiClient({
             solution: `Baris yang tidak terdaftar ditandai warna merah pada tabel pratinjau. Sistem hanya akan mengimpor nilai untuk ${validCount} siswa yang sah.`,
             showDownloadTemplate: true,
           });
+        } else {
+          setMessage({
+            type: "success",
+            text: `File "${file.name}" terverifikasi untuk mapel ${detectedMapel.nama} (${detectedMapel.kode}). Seluruh ${validCount} siswa 100% cocok dengan Kelas ${kelasNama}.`,
+          });
         }
       } catch (err: any) {
         console.error("Gagal membaca Excel:", err);
@@ -377,6 +447,16 @@ export default function FormImportNilaiClient({
         type: "success",
         text: res.message,
       });
+      // Perbarui status mapel di widget informasi langsung di UI
+      setCurrentMapelList((prev) =>
+        prev.map((m) =>
+          m.id === selectedMapelId
+            ? { ...m, terisiCount: validItems.length }
+            : m
+        )
+      );
+      router.refresh();
+
       // Bersihkan pratinjau setelah sukses
       setParsedRows([]);
       setFileName("");
@@ -396,31 +476,166 @@ export default function FormImportNilaiClient({
   const validCount = parsedRows.filter((r) => r.isValid).length;
   const invalidCount = parsedRows.filter((r) => !r.isValid).length;
 
+  const totalMapel = currentMapelList.length;
+  const completeCount = currentMapelList.filter(
+    (m) => (m.terisiCount || 0) >= siswaList.length && siswaList.length > 0
+  ).length;
+  const partialCount = currentMapelList.filter(
+    (m) => (m.terisiCount || 0) > 0 && (m.terisiCount || 0) < siswaList.length
+  ).length;
+  const emptyCount = currentMapelList.filter(
+    (m) => (m.terisiCount || 0) === 0
+  ).length;
+  const completionPercent = totalMapel > 0 ? Math.round((completeCount / totalMapel) * 100) : 0;
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
       <div className="rounded-2xl bg-gradient-to-r from-[#1b4332] to-[#143225] p-6 sm:p-8 text-white shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-medium mb-2 backdrop-blur-sm font-mono">
-              Bantuan Wali Kelas • Kelas {kelasNama} (Tingkat {tingkat})
+          <div className="w-full flex justify-between flex-row-reverse">
+            <span className="text-lg inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 font-medium mb-2 backdrop-blur-sm font-mono">
+              Wali Kelas • Kelas {kelasNama} (Tingkat {tingkat})
             </span>
-            <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
+            <h1 className="text-xl sm:text-2xl font-bold font-poppins">
               Import Nilai Mata Pelajaran dari Excel
             </h1>
-            <p className="mt-1 text-sm text-emerald-100/90 max-w-2xl">
-              Fasilitasi nilai dari guru mapel (Bahasa Inggris, PJOK, dll.) yang diserahkan dalam bentuk file Excel. Unduh template khusus siswa kelas ini, isi nilai, lalu unggah kembali untuk masuk ke rapor.
+          </div>
+        </div>
+      </div>
+
+      {/* WIDGET STATUS PENGISIAN NILAI MATA PELAJARAN */}
+      <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-zinc-900 font-poppins">
+                Status Pengisian Nilai Mata Pelajaran
+              </h2>
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                {completeCount} / {totalMapel} Mapel Lengkap ({completionPercent}%)
+              </span>
+            </div>
+            <p className="text-xs text-zinc-500 mt-1">
+              Klik salah satu mata pelajaran di bawah untuk memilih target impor atau mengunduh template nilainya secara langsung.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/wali-kelas"
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs backdrop-blur-sm border border-white/15 transition-all text-center"
-            >
-              Cek Kelengkapan Nilai
-            </Link>
+          {/* Indikator Status Legend */}
+          <div className="flex items-center gap-2 text-[11px] font-medium flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-600" />
+              {completeCount} Lengkap
+            </span>
+            {partialCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                {partialCount} Sebagian
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-100 text-stone-600 border border-stone-200">
+              <span className="h-2 w-2 rounded-full bg-stone-400" />
+              {emptyCount} Belum Ada Nilai
+            </span>
           </div>
+        </div>
+
+        {/* Mini Progress Bar Keseluruhan */}
+        <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-700 transition-all duration-500 rounded-full"
+            style={{ width: `${completionPercent}%` }}
+          />
+        </div>
+
+        {/* Grid Kartu Status Mata Pelajaran */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pt-1">
+          {currentMapelList.map((m) => {
+            const isSelected = m.id === selectedMapelId;
+            const count = m.terisiCount || 0;
+            const total = siswaList.length;
+            const isComplete = count >= total && total > 0;
+            const isPartial = count > 0 && count < total;
+            const percent = total > 0 ? Math.min(100, Math.round((count / total) * 100)) : 0;
+
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setSelectedMapelId(m.id);
+                  handleReset();
+                }}
+                className={`p-3 rounded-xl text-left border transition-all relative flex flex-col justify-between group ${
+                  isSelected
+                    ? "border-[#1b4332] bg-emerald-50/50 ring-2 ring-[#1b4332]/20 shadow-xs"
+                    : "border-stone-200 bg-stone-50/40 hover:bg-stone-50 hover:border-stone-300"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-1.5 mb-2">
+                  <span
+                    className={`font-mono font-bold text-xs px-2 py-0.5 rounded-md ${
+                      isSelected
+                        ? "bg-[#1b4332] text-white"
+                        : "bg-white text-zinc-800 border border-stone-200 group-hover:border-stone-300"
+                    }`}
+                  >
+                    {m.kode}
+                  </span>
+                  {isComplete ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                      <CheckCircle2Icon className="h-3 w-3 text-emerald-700" />
+                      Lengkap
+                    </span>
+                  ) : isPartial ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200/60">
+                      <AlertCircleIcon className="h-3 w-3 text-amber-700" />
+                      {count}/{total}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-stone-500 bg-white px-2 py-0.5 rounded-md border border-stone-200">
+                      Kosong
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-zinc-900 line-clamp-1 group-hover:text-emerald-950">
+                    {m.nama}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 truncate">
+                    {m.guruNama ? `Guru: ${m.guruNama}` : "Wali Kelas"}
+                  </div>
+                </div>
+
+                {/* Progress bar per mapel */}
+                <div className="mt-3 pt-2 border-t border-stone-200/60 space-y-1">
+                  <div className="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        isComplete
+                          ? "bg-emerald-600"
+                          : isPartial
+                          ? "bg-amber-500"
+                          : "bg-transparent"
+                      }`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="text-zinc-500 font-mono">
+                      Terisi: <strong className={isComplete ? "text-emerald-700" : isPartial ? "text-amber-700" : "text-stone-600"}>{count}/{total}</strong>
+                    </span>
+                    {isSelected && (
+                      <span className="font-semibold text-[#1b4332] text-[10px]">
+                        • Aktif
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -506,7 +721,7 @@ export default function FormImportNilaiClient({
 
             {/* Petunjuk Solusi / Bantuan */}
             <div
-              className={`p-4 rounded-2xl border text-left text-xs space-y-1 ${
+              className={`p-4 rounded-2xl border text-left text-xs space-y-1.5 ${
                 warningModal.type === "error"
                   ? "bg-rose-50/80 border-rose-200/80 text-rose-950"
                   : "bg-amber-50/80 border-amber-200/80 text-amber-950"
@@ -520,12 +735,12 @@ export default function FormImportNilaiClient({
                 Petunjuk Solusi:
               </span>
               <p
-                className={`text-[11px] leading-relaxed ${
+                className={`text-[11px] leading-relaxed whitespace-pre-line ${
                   warningModal.type === "error" ? "text-rose-800" : "text-amber-800"
                 }`}
               >
                 {warningModal.solution ||
-                  `Silakan unduh format template resmi untuk Kelas ${kelasNama}. File template sudah terisi daftar nama dan NISN seluruh siswa secara akurat sehingga kolom penilaian dijamin 100% cocok.`}
+                  `Silakan unduh format template resmi untuk Kelas ${kelasNama}. File template sudah terisi daftar nama dan NISN seluruh siswa secara akurat.`}
               </p>
             </div>
 
@@ -559,6 +774,99 @@ export default function FormImportNilaiClient({
         </div>
       )}
 
+      {/* MODAL KONFIRMASI SIMPAN NILAI KE DATABASE */}
+      {showConfirmModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setShowConfirmModal(false)}
+        >
+          <div
+            className="relative bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200 text-center space-y-5 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Tombol Close X */}
+            <button
+              type="button"
+              onClick={() => setShowConfirmModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-stone-100 transition-colors"
+            >
+              <XIcon className="h-5 w-5" />
+            </button>
+
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs">
+              <SaveIcon className="h-7 w-7 text-emerald-700" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-zinc-900 font-poppins">
+                Konfirmasi Simpan Nilai
+              </h3>
+              <p className="text-xs text-zinc-600 leading-relaxed px-2">
+                Pastikan mata pelajaran tujuan dan data penilaian sudah sesuai sebelum diterapkan ke lembar rapor siswa.
+              </p>
+            </div>
+
+            {/* Rincian Target Import */}
+            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 text-left text-xs space-y-2.5">
+              <div className="flex justify-between items-center pb-2 border-b border-stone-200/70">
+                <span className="text-zinc-500 font-medium">Mata Pelajaran:</span>
+                <span className="font-bold text-zinc-900 font-mono text-right">
+                  {selectedMapel?.nama} ({selectedMapel?.kode})
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-stone-200/70">
+                <span className="text-zinc-500 font-medium">Guru Pengampu:</span>
+                <span className="font-semibold text-zinc-800 text-right">
+                  {selectedMapel?.guruNama || "Wali Kelas"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-stone-200/70">
+                <span className="text-zinc-500 font-medium">Rombel Target:</span>
+                <span className="font-semibold text-zinc-800">
+                  Kelas {kelasNama} (Tingkat {tingkat})
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-zinc-500 font-medium">Data Siap Disimpan:</span>
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-900 font-bold font-mono text-xs">
+                  {validCount} Siswa Cocok
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-left text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+              <AlertCircleIcon className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+              <span>
+                Nilai rapor siswa pada mata pelajaran <strong>{selectedMapel?.nama}</strong> akan <strong>diperbarui</strong> dengan data dari file ini.
+              </span>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-stone-200 hover:bg-stone-100 text-zinc-700 text-xs font-semibold transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setShowConfirmModal(false);
+                  await handleSaveToDatabase();
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition-all active:scale-95 disabled:opacity-50"
+              >
+                <SaveIcon className="h-4 w-4" />
+                {isSubmitting ? "Menyimpan..." : "Ya, Simpan Nilai"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 2 Kolom Langkah Kerja */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* LANGKAH 1: Pilih Mapel & Download Template */}
@@ -573,7 +881,7 @@ export default function FormImportNilaiClient({
               </h2>
             </div>
             <p className="text-xs text-zinc-600 leading-relaxed">
-              Pilih mata pelajaran yang nilainya akan diimpor. Template yang diunduh sudah otomatis memuat nama dan NISN <strong>{siswaList.length} siswa Kelas {kelasNama}</strong>.
+              Pilih mata pelajaran yang nilainya akan diimpor. Template yang diunduh otomatis diawali kode mapel (contoh: <code className="font-mono bg-stone-100 px-1 py-0.5 rounded text-emerald-900 font-semibold">{selectedMapel?.kode || "BIN"}_Kelas_{kelasNama}...xlsx</code>) dan memuat NISN <strong>{siswaList.length} siswa Kelas {kelasNama}</strong>.
             </p>
 
             <div className="mt-4 space-y-3">
@@ -589,24 +897,39 @@ export default function FormImportNilaiClient({
                   }}
                   className="w-full px-3.5 py-2.5 text-sm font-medium rounded-xl border border-stone-200 bg-stone-50 focus:ring-2 focus:ring-[#1b4332]"
                 >
-                  {mapelList.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nama} ({m.kode}) {m.guruNama ? `— Guru: ${m.guruNama}` : ""}
-                    </option>
-                  ))}
+                  {currentMapelList.map((m) => {
+                    const count = m.terisiCount || 0;
+                    const isLengkap = count >= siswaList.length && siswaList.length > 0;
+                    const statusText = isLengkap
+                      ? `[✓ Lengkap: ${count}/${siswaList.length}]`
+                      : count > 0
+                      ? `[⚠ Sebagian: ${count}/${siswaList.length}]`
+                      : `[○ Belum Diisi]`;
+
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.kode} — {m.nama} {statusText} {m.guruNama ? `(Guru: ${m.guruNama})` : ""}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleDownloadTemplate}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 text-xs font-semibold transition-all shadow-2xs"
-          >
-            <FileDownIcon className="h-4 w-4 text-emerald-700" />
-            Download Format Excel ({selectedMapel?.kode || "Mapel"} • {siswaList.length} Siswa)
-          </button>
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 text-xs font-semibold transition-all shadow-2xs active:scale-95"
+            >
+              <FileDownIcon className="h-4 w-4 text-emerald-700" />
+              Download Format Excel ({selectedMapel?.kode || "Mapel"} • {siswaList.length} Siswa)
+            </button>
+            <p className="text-[10px] text-zinc-400 text-center font-mono truncate">
+              {selectedMapel?.kode}_Kelas_{kelasNama.replace(/[^a-zA-Z0-9]/g, "")}_TA_{tahunAjaran.replace("/", "-")}_Sem_{semester}.xlsx
+            </p>
+          </div>
         </div>
 
         {/* LANGKAH 2: Upload File Excel */}
@@ -621,8 +944,19 @@ export default function FormImportNilaiClient({
               </h2>
             </div>
             <p className="text-xs text-zinc-600 leading-relaxed">
-              Unggah file Excel (`.xlsx` atau `.csv`) yang sudah diisi oleh guru mapel bersangkutan. Sistem akan mencocokkan data berdasarkan NISN siswa.
+              Unggah file spreadsheet (`.xlsx` atau `.csv`). Sistem akan <strong>mendeteksi mapel secara otomatis dari awalan nama file</strong> dan mencocokkan nilai berdasarkan NISN.
             </p>
+
+            {/* Aturan Wajib Awalan Nama File */}
+            <div className="mt-3 p-3 rounded-xl bg-sky-50/80 border border-sky-200/80 text-[11px] text-sky-950 flex items-start gap-2">
+              <AlertCircleIcon className="h-4 w-4 text-sky-700 shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-semibold block text-sky-900">Aturan Nama File Wajib:</strong>
+                <span className="text-sky-900/90 leading-relaxed">
+                  Nama file wajib diawali kode mapel (contoh: <code className="font-mono bg-sky-100/90 px-1 py-0.5 rounded font-semibold text-sky-900">BIN_Kelas_{kelasNama}.xlsx</code> atau <code className="font-mono bg-sky-100/90 px-1 py-0.5 rounded font-semibold text-sky-900">IPAS_Kelas_{kelasNama}.xlsx</code>). File dengan nama yang tidak sesuai awalan kode mapel akan otomatis ditolak.
+                </span>
+              </div>
+            </div>
 
             <div className="mt-4">
               <label
@@ -669,11 +1003,16 @@ export default function FormImportNilaiClient({
         <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-xs space-y-4 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-stone-100 pb-4">
             <div>
-              <h3 className="font-bold text-base text-zinc-900 font-poppins">
-                Pratinjau Hasil Pembacaan Excel ({selectedMapel?.nama})
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-base text-zinc-900 font-poppins">
+                  Pratinjau Hasil Pembacaan Excel
+                </h3>
+                <span className="px-2 py-0.5 rounded-md text-xs font-mono font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  {selectedMapel?.kode}
+                </span>
+              </div>
               <p className="text-xs text-zinc-600 mt-0.5">
-                Periksa kesesuaian nilai sebelum menerapkan ke rapor. Nilai Akhir dihitung otomatis: (30% Tugas + 30% UTS + 40% UAS).
+                Target Mapel: <strong className="text-zinc-900 font-semibold">{selectedMapel?.nama}</strong> • Guru: {selectedMapel?.guruNama || "Wali Kelas"}
               </p>
             </div>
 
@@ -692,7 +1031,7 @@ export default function FormImportNilaiClient({
               <button
                 type="button"
                 disabled={isSubmitting || validCount === 0}
-                onClick={handleSaveToDatabase}
+                onClick={() => setShowConfirmModal(true)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition-all disabled:opacity-50 active:scale-95"
               >
                 <SaveIcon className="h-4 w-4" />
