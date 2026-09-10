@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormPelengkapClient from "./form-pelengkap";
@@ -7,7 +9,15 @@ import { getTemplateRaporAction } from "@/actions/master-deskripsi";
 
 export const dynamic = "force-dynamic";
 
-export default async function WaliKelasPelengkapPage() {
+export default function WaliKelasPelengkapPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <PelengkapContent />
+    </Suspense>
+  );
+}
+
+async function PelengkapContent() {
   const user = await requireUser();
 
   // 1. Cari kelas binaan

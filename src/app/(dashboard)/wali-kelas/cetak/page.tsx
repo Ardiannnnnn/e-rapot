@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import CetakRaporClient from "./cetak-rapor-client";
@@ -14,7 +16,17 @@ function getFaseKurikulumMerdeka(tingkat: number): string {
   return "F";
 }
 
-export default async function WaliKelasCetakPage(props: {
+export default function WaliKelasCetakPage(props: {
+  searchParams?: Promise<{ kelasId?: string }>;
+}) {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <CetakContent searchParams={props.searchParams} />
+    </Suspense>
+  );
+}
+
+async function CetakContent(props: {
   searchParams?: Promise<{ kelasId?: string }>;
 }) {
   const user = await requireUser();

@@ -1,9 +1,19 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormImportNilaiClient from "./form-import-nilai";
 import { AlertCircleIcon } from "@/components/shared/icons";
 
-export default async function WaliKelasImportNilaiPage() {
+export default function WaliKelasImportNilaiPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <WaliKelasImportNilaiContent />
+    </Suspense>
+  );
+}
+
+async function WaliKelasImportNilaiContent() {
   const user = await requireUser();
 
   // 1. Cari kelas binaan wali kelas (atau kelas pertama jika Admin)

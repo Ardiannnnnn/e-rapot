@@ -1,10 +1,20 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import DaftarSiswaClient from "./daftar-siswa";
 import { AlertCircleIcon } from "@/components/shared/icons";
 import { SiswaItem } from "@/types/wali-kelas/siswa";
 
-export default async function WaliKelasSiswaPage() {
+export default function WaliKelasSiswaPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <WaliKelasSiswaContent />
+    </Suspense>
+  );
+}
+
+async function WaliKelasSiswaContent() {
   const user = await requireUser();
 
   // 1. Cari kelas binaan

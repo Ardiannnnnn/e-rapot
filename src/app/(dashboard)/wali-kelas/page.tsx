@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
@@ -11,7 +13,15 @@ import {
   SmileIcon
 } from "@/components/shared/icons";
 
-export default async function WaliKelasDashboardPage() {
+export default function WaliKelasDashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <WaliKelasDashboardContent />
+    </Suspense>
+  );
+}
+
+async function WaliKelasDashboardContent() {
   const user = await requireUser();
 
   // 1. Cari kelas binaan wali kelas (atau kelas pertama jika Admin)
