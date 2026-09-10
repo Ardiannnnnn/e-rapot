@@ -228,9 +228,6 @@ export default function FormTP({
             <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 block">
               Pilih Mata Pelajaran & Tingkat Kelas:
             </span>
-            <p className="text-xs text-zinc-600 mt-0.5">
-              Tujuan Pembelajaran (TP) berlaku untuk semua kelas paralel pada tingkat yang sama.
-            </p>
           </div>
           <span className="text-xs font-mono font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
             {options.length} Mapel-Tingkat

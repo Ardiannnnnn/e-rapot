@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { sanitizeInput, isValidEmail } from "@/lib/sanitize";
 
 export async function createGuruAction(payload: {
   name: string;
@@ -14,25 +15,64 @@ export async function createGuruAction(payload: {
   const user = await requireUser();
   const { name, email, password, role } = payload;
 
-  if (!name || !email) {
-    return { success: false, message: "Nama dan email wajib diisi." };
+  const cleanName = sanitizeInput(name || "", 100);
+  const cleanEmail = (email || "").trim().toLowerCase();
+  const cleanPassword = password?.trim() || "password123";
+
+  // 1. Validasi Kolom Wajib
+  if (!cleanName || !cleanEmail) {
+    return { success: false, message: "Nama lengkap dan email akun login wajib diisi." };
+  }
+
+  // 2. Proteksi Anti-XSS (Karakter tag HTML < atau >)
+  if (/[<>]/.test(name || "") || /[<>]/.test(email || "")) {
+    return {
+      success: false,
+      message: "Karakter tag HTML (< atau >) tidak diizinkan untuk alasan keamanan sistem.",
+    };
+  }
+
+  // 3. Validasi Panjang Nama
+  if (cleanName.length < 3) {
+    return {
+      success: false,
+      message: "Nama lengkap guru minimal harus terdiri dari 3 karakter.",
+    };
+  }
+
+  // 4. Validasi Format Email
+  if (!isValidEmail(cleanEmail)) {
+    return {
+      success: false,
+      message: "Format email tidak valid. Pastikan penulisan email benar (contoh: guru@sekolah.sch.id).",
+    };
+  }
+
+  // 5. Validasi Panjang Password
+  if (cleanPassword.length < 6) {
+    return {
+      success: false,
+      message: "Kata sandi minimal harus terdiri dari 6 karakter.",
+    };
   }
 
   try {
-    const cleanEmail = email.trim().toLowerCase();
     const existing = await prisma.user.findUnique({
       where: { email: cleanEmail },
     });
 
     if (existing) {
-      return { success: false, message: "Email guru sudah terdaftar di sistem." };
+      return {
+        success: false,
+        message: `Email '${cleanEmail}' sudah terdaftar pada akun lain. Gunakan email berbeda.`,
+      };
     }
 
-    const hashedPassword = await bcrypt.hash(password?.trim() || "password123", 10);
+    const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 
     await prisma.user.create({
       data: {
-        name: name.trim(),
+        name: cleanName,
         email: cleanEmail,
         password: hashedPassword,
         role: role || "GURU",
@@ -43,7 +83,7 @@ export async function createGuruAction(payload: {
     revalidatePath("/admin-sekolah/pendidik");
     revalidatePath("/admin-sekolah/kelas");
 
-    return { success: true, message: `Akun pendidik untuk '${name}' berhasil dibuat.` };
+    return { success: true, message: `Akun pendidik untuk '${cleanName}' berhasil dibuat.` };
   } catch (error: any) {
     console.error("Gagal membuat akun guru:", error);
     return { success: false, message: "Gagal membuat akun: " + (error?.message || "Terjadi kesalahan.") };
@@ -171,13 +211,52 @@ export async function updateGuruAction(payload: {
   await requireUser();
   const { id, name, email, password, isActive, kelasWaliId } = payload;
 
-  if (!id || !name || !email) {
-    return { success: false, message: "ID, nama, dan email wajib diisi." };
+  if (!id) {
+    return { success: false, message: "ID guru tidak valid." };
+  }
+
+  const cleanName = sanitizeInput(name || "", 100);
+  const cleanEmail = (email || "").trim().toLowerCase();
+  const rawPassword = password?.trim() || "";
+
+  // 1. Validasi Required
+  if (!cleanName || !cleanEmail) {
+    return { success: false, message: "Nama lengkap dan email akun login wajib diisi." };
+  }
+
+  // 2. Proteksi Anti-XSS
+  if (/[<>]/.test(name || "") || /[<>]/.test(email || "")) {
+    return {
+      success: false,
+      message: "Karakter tag HTML (< atau >) tidak diizinkan untuk alasan keamanan sistem.",
+    };
+  }
+
+  // 3. Validasi Panjang Nama
+  if (cleanName.length < 3) {
+    return {
+      success: false,
+      message: "Nama lengkap guru minimal harus terdiri dari 3 karakter.",
+    };
+  }
+
+  // 4. Validasi Format Email
+  if (!isValidEmail(cleanEmail)) {
+    return {
+      success: false,
+      message: "Format email tidak valid. Pastikan penulisan email benar.",
+    };
+  }
+
+  // 5. Validasi Panjang Password (jika diisi)
+  if (rawPassword && rawPassword.length < 6) {
+    return {
+      success: false,
+      message: "Kata sandi baru minimal harus terdiri dari 6 karakter.",
+    };
   }
 
   try {
-    const cleanEmail = email.trim().toLowerCase();
-
     // Cek duplikasi email pada akun lain
     const existingEmail = await prisma.user.findFirst({
       where: {
@@ -191,7 +270,7 @@ export async function updateGuruAction(payload: {
     }
 
     const updateUserData: any = {
-      name: name.trim(),
+      name: cleanName,
       email: cleanEmail,
     };
 

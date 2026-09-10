@@ -38,9 +38,11 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           allowedRoles: ["SUPER_ADMIN"],
         },
         {
-          title: "Tambah Sekolah Baru",
-          href: "/super-admin/sekolah/tambah",
-          icon: LayersIcon,
+          title: "Operator Sekolah",
+          href: "/super-admin/operator",
+          icon: UsersIcon,
+          badge: "Admin",
+          badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
           allowedRoles: ["SUPER_ADMIN"],
         },
       ],
@@ -63,11 +65,9 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           allowedRoles: ["ADMIN_SEKOLAH", "ADMIN"],
         },
         {
-          title: "Tahun & Semester",
-          href: "/admin-sekolah/tahun-ajaran",
-          icon: CalendarIcon,
-          badge: "Aktif",
-          badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+          title: "Pendidik & Penugasan",
+          href: "/admin-sekolah/pendidik",
+          icon: UsersIcon,
           allowedRoles: ["ADMIN_SEKOLAH", "ADMIN"],
         },
         {
@@ -77,17 +77,20 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           allowedRoles: ["ADMIN_SEKOLAH", "ADMIN"],
         },
         {
+          title: "Tahun & Semester",
+          href: "/admin-sekolah/tahun-ajaran",
+          icon: CalendarIcon,
+          badge: "Aktif",
+          badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+          allowedRoles: ["ADMIN_SEKOLAH", "ADMIN"],
+        },
+        {
           title: "Master Mata Pelajaran",
           href: "/admin-sekolah/mapel",
           icon: BookOpenIcon,
           allowedRoles: ["ADMIN_SEKOLAH", "ADMIN"],
         },
-        {
-          title: "Pendidik & Penugasan",
-          href: "/admin-sekolah/pendidik",
-          icon: UsersIcon,
-          allowedRoles: ["ADMIN_SEKOLAH", "ADMIN"],
-        },
+        
         {
           title: "Data Siswa",
           href: "/admin-sekolah/siswa",

@@ -11,153 +11,14 @@ import {
   deleteGuruAction,
 } from "@/actions/pendidik";
 
-export interface GuruItem {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  isActive: boolean;
-  kelasWali: {
-    id: string;
-    nama: string;
-  } | null;
-  totalPengampu: number;
-}
-
-export interface PengampuRecord {
-  id: string;
-  tahunAjaran: string;
-  semester: number;
-  guru: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  kelas: {
-    id: string;
-    nama: string;
-    tingkat: number;
-  };
-  mapel: {
-    id: string;
-    kode: string;
-    nama: string;
-  };
-}
-
-export interface KelasItemWithWali {
-  id: string;
-  nama: string;
-  tingkat: number;
-  waliKelasId?: string | null;
-  waliKelasNama?: string | null;
-}
-
-interface FormPendidikProps {
-  guruList: GuruItem[];
-  pengampuList: PengampuRecord[];
-  kelasList: KelasItemWithWali[];
-  mapelList: { id: string; kode: string; nama: string }[];
-  tahunAjaranAktif: string;
-}
-
-function PaginationFooter({
-  currentPage,
-  pageSize,
-  totalItems,
-  totalPages,
-  onPageChange,
-  onPageSizeChange,
-  label,
-}: {
-  currentPage: number;
-  pageSize: number;
-  totalItems: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  onPageSizeChange: (size: 10 | 20 | 30) => void;
-  label: string;
-}) {
-  const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const end = Math.min(currentPage * pageSize, totalItems);
-
-  // Generate page numbers
-  const pages: (number | string)[] = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else {
-    pages.push(1);
-    if (currentPage > 3) pages.push("...");
-    const pStart = Math.max(2, currentPage - 1);
-    const pEnd = Math.min(totalPages - 1, currentPage + 1);
-    for (let i = pStart; i <= pEnd; i++) pages.push(i);
-    if (currentPage < totalPages - 2) pages.push("...");
-    pages.push(totalPages);
-  }
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 bg-white rounded-2xl border border-stone-200 text-xs text-zinc-600 shadow-xs">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className="text-zinc-500 font-medium">Tampilkan:</span>
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value) as 10 | 20 | 30)}
-          className="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
-        >
-          <option value={10}>10 data</option>
-          <option value={20}>20 data</option>
-          <option value={30}>30 data</option>
-        </select>
-        <span className="text-zinc-400">|</span>
-        <span>
-          Menampilkan <strong className="font-mono text-zinc-900">{start} - {end}</strong> dari{" "}
-          <strong className="font-mono text-zinc-900">{totalItems}</strong> {label}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          disabled={currentPage <= 1}
-          className="px-2.5 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition text-zinc-700 text-xs"
-        >
-          ← Sebelumnya
-        </button>
-
-        {pages.map((p, i) =>
-          typeof p === "string" ? (
-            <span key={i} className="px-1.5 text-zinc-400 font-mono">
-              ...
-            </span>
-          ) : (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onPageChange(p)}
-              className={`h-7 w-7 rounded-lg text-xs font-mono font-bold transition flex items-center justify-center ${
-                currentPage === p
-                  ? "bg-[#1b4332] text-white shadow-xs"
-                  : "border border-stone-200 hover:bg-stone-100 text-zinc-700"
-              }`}
-            >
-              {p}
-            </button>
-          )
-        )}
-
-        <button
-          type="button"
-          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage >= totalPages}
-          className="px-2.5 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition text-zinc-700 text-xs"
-        >
-          Selanjutnya →
-        </button>
-      </div>
-    </div>
-  );
-}
+import {
+  GuruItem,
+  PengampuRecord,
+  KelasItemWithWali,
+  FormPendidikProps,
+} from "@/types/admin-sekolah";
+import { TablePagination } from "@/components/shared/table-pagination";
+import { CheckCircle2Icon } from "@/components/shared/icons";
 
 export default function FormPendidik({
   guruList,
@@ -181,6 +42,14 @@ export default function FormPendidik({
   const [guruName, setGuruName] = useState("");
   const [guruEmail, setGuruEmail] = useState("");
   const [guruPassword, setGuruPassword] = useState("password123");
+  const [showGuruPassword, setShowGuruPassword] = useState(false);
+  const [guruSubmitted, setGuruSubmitted] = useState(false);
+  const [guruTouched, setGuruTouched] = useState({
+    name: false,
+    email: false,
+    password: false,
+  });
+  const [guruFormError, setGuruFormError] = useState("");
 
   // Modal Edit Guru & Atur Wali Kelas
   const [isEditGuruOpen, setIsEditGuruOpen] = useState(false);
@@ -188,8 +57,29 @@ export default function FormPendidik({
   const [editGuruName, setEditGuruName] = useState("");
   const [editGuruEmail, setEditGuruEmail] = useState("");
   const [editGuruPassword, setEditGuruPassword] = useState("");
+  const [showEditGuruPassword, setShowEditGuruPassword] = useState(false);
   const [editGuruIsActive, setEditGuruIsActive] = useState<boolean>(true);
   const [editGuruKelasWaliId, setEditGuruKelasWaliId] = useState<string>("NONE");
+  const [editGuruSubmitted, setEditGuruSubmitted] = useState(false);
+  const [editGuruTouched, setEditGuruTouched] = useState({
+    name: false,
+    email: false,
+    password: false,
+  });
+  const [editGuruFormError, setEditGuruFormError] = useState("");
+
+  // Alert Dialog Modal (Popup Berhasil Simpan / Edit / Hapus)
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "success",
+  });
 
   // Modal Tambah Penugasan Mengajar
   const [isAssignOpen, setIsAssignOpen] = useState(false);
@@ -270,9 +160,69 @@ export default function FormPendidik({
     startIndexGuru + pageSizeGuru
   );
 
+  // Validasi Realtime Tambah Guru
+  const getGuruNameError = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return (guruSubmitted || guruTouched.name) ? "Nama lengkap guru wajib diisi." : "";
+    }
+    if (/[<>]/.test(val)) {
+      return "Karakter tag HTML (< atau >) tidak diizinkan.";
+    }
+    if (trimmed.length < 3) {
+      return "Nama lengkap guru minimal harus 3 karakter.";
+    }
+    return "";
+  };
+
+  const getGuruEmailError = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return (guruSubmitted || guruTouched.email) ? "Alamat email akun login wajib diisi." : "";
+    }
+    if (/[<>]/.test(trimmed)) {
+      return "Karakter tag HTML (< atau >) tidak diizinkan.";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      return "Format email tidak valid (contoh: guru@sekolah.sch.id).";
+    }
+    return "";
+  };
+
+  const getGuruPasswordError = (val: string) => {
+    if (val && val.length < 6) {
+      return "Kata sandi minimal harus terdiri dari 6 karakter.";
+    }
+    return "";
+  };
+
+  const handleOpenAddGuru = () => {
+    setGuruName("");
+    setGuruEmail("");
+    setGuruPassword("password123");
+    setShowGuruPassword(false);
+    setGuruSubmitted(false);
+    setGuruTouched({ name: false, email: false, password: false });
+    setGuruFormError("");
+    setIsAddGuruOpen(true);
+  };
+
   const handleCreateGuru = (e: React.FormEvent) => {
     e.preventDefault();
+    setGuruSubmitted(true);
     setMessage(null);
+
+    const nameErr = getGuruNameError(guruName);
+    const emailErr = getGuruEmailError(guruEmail);
+    const passErr = getGuruPasswordError(guruPassword);
+
+    if (nameErr || emailErr || passErr) {
+      setGuruFormError("Silakan perbaiki isian formulir yang bertanda merah.");
+      return;
+    }
+
+    setGuruFormError("");
 
     startTransition(async () => {
       const res = await createGuruAction({
@@ -282,12 +232,18 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Akun Guru Berhasil Dibuat! 🎉",
+          message: res.message,
+          type: "success",
+        });
         setGuruName("");
         setGuruEmail("");
+        setGuruPassword("password123");
         setIsAddGuruOpen(false);
       } else {
-        setMessage({ type: "error", text: res.message });
+        setGuruFormError(res.message);
       }
     });
   };
@@ -306,7 +262,12 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Penugasan Mengajar Berhasil Disimpan! 🎉",
+          message: res.message,
+          type: "success",
+        });
         setIsAssignOpen(false);
       } else {
         setMessage({ type: "error", text: res.message });
@@ -314,20 +275,73 @@ export default function FormPendidik({
     });
   };
 
+  // Validasi Realtime Edit Guru
+  const getEditGuruNameError = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return editGuruSubmitted || editGuruTouched.name ? "Nama lengkap guru wajib diisi." : "";
+    }
+    if (/[<>]/.test(val)) {
+      return "Karakter tag HTML (< atau >) tidak diizinkan.";
+    }
+    if (trimmed.length < 3) {
+      return "Nama lengkap guru minimal harus 3 karakter.";
+    }
+    return "";
+  };
+
+  const getEditGuruEmailError = (val: string) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return editGuruSubmitted || editGuruTouched.email ? "Alamat email akun login wajib diisi." : "";
+    }
+    if (/[<>]/.test(trimmed)) {
+      return "Karakter tag HTML (< atau >) tidak diizinkan.";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      return "Format email tidak valid (contoh: guru@sekolah.sch.id).";
+    }
+    return "";
+  };
+
+  const getEditGuruPasswordError = (val: string) => {
+    if (val && val.length < 6) {
+      return "Kata sandi baru minimal harus terdiri dari 6 karakter.";
+    }
+    return "";
+  };
+
   const handleOpenEditGuru = (g: GuruItem) => {
     setEditingGuru(g);
     setEditGuruName(g.name);
     setEditGuruEmail(g.email);
     setEditGuruPassword("");
+    setShowEditGuruPassword(false);
     setEditGuruIsActive(g.isActive);
     setEditGuruKelasWaliId(g.kelasWali?.id || "NONE");
+    setEditGuruSubmitted(false);
+    setEditGuruTouched({ name: false, email: false, password: false });
+    setEditGuruFormError("");
     setIsEditGuruOpen(true);
   };
 
   const handleUpdateGuru = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingGuru) return;
+    setEditGuruSubmitted(true);
     setMessage(null);
+
+    const nameErr = getEditGuruNameError(editGuruName);
+    const emailErr = getEditGuruEmailError(editGuruEmail);
+    const passErr = getEditGuruPasswordError(editGuruPassword);
+
+    if (nameErr || emailErr || passErr) {
+      setEditGuruFormError("Silakan perbaiki isian formulir yang bertanda merah.");
+      return;
+    }
+
+    setEditGuruFormError("");
 
     startTransition(async () => {
       const res = await updateGuruAction({
@@ -340,10 +354,15 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Data Guru Berhasil Diperbarui! 🎉",
+          message: res.message,
+          type: "success",
+        });
         setIsEditGuruOpen(false);
       } else {
-        setMessage({ type: "error", text: res.message });
+        setEditGuruFormError(res.message);
       }
     });
   };
@@ -359,9 +378,19 @@ export default function FormPendidik({
     startTransition(async () => {
       const res = await toggleGuruStatusAction(guruId);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: currentStatus ? "Akun Guru Dinonaktifkan! ⚪" : "Akun Guru Diaktifkan! 🟢",
+          message: res.message,
+          type: "success",
+        });
       } else {
-        setMessage({ type: "error", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Gagal Mengubah Status",
+          message: res.message,
+          type: "info",
+        });
       }
     });
   };
@@ -390,7 +419,12 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Penugasan Mengajar Berhasil Diperbarui! 🎉",
+          message: res.message,
+          type: "success",
+        });
         setIsEditPengampuOpen(false);
       } else {
         setMessage({ type: "error", text: res.message });
@@ -405,7 +439,12 @@ export default function FormPendidik({
     startTransition(async () => {
       const res = await deletePengampuAction(id);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Penugasan Berhasil Dicabut!",
+          message: res.message,
+          type: "info",
+        });
       } else {
         setMessage({ type: "error", text: res.message });
       }
@@ -419,9 +458,19 @@ export default function FormPendidik({
     startTransition(async () => {
       const res = await deleteGuruAction(id);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Akun Guru Berhasil Dihapus!",
+          message: res.message,
+          type: "info",
+        });
       } else {
-        setMessage({ type: "error", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Gagal Menghapus Akun",
+          message: res.message,
+          type: "info",
+        });
       }
     });
   };
@@ -654,18 +703,18 @@ export default function FormPendidik({
             </div>
           </div>
 
-          {/* Pagination Footer Tab 1 */}
-          <PaginationFooter
+          {/* Pagination Footer Tab 1 menggunakan Template Standar */}
+          <TablePagination
             currentPage={safePagePengampu}
-            totalPages={totalPagesPengampu}
             pageSize={pageSizePengampu}
             totalItems={totalPengampu}
             onPageChange={(page) => setCurrentPagePengampu(page)}
             onPageSizeChange={(size) => {
-              setPageSizePengampu(size);
+              setPageSizePengampu(size as 10 | 20 | 30);
               setCurrentPagePengampu(1);
             }}
             label="jadwal penugasan"
+            pageSizeOptions={[10, 20, 30]}
           />
         </div>
       )}
@@ -708,7 +757,7 @@ export default function FormPendidik({
 
             <button
               type="button"
-              onClick={() => setIsAddGuruOpen(true)}
+              onClick={handleOpenAddGuru}
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#1b4332] text-white text-xs font-semibold hover:bg-[#143225] transition shadow-xs flex items-center justify-center gap-2"
             >
               <span>➕</span>
@@ -854,18 +903,18 @@ export default function FormPendidik({
             </div>
           </div>
 
-          {/* Pagination Footer Tab 2 */}
-          <PaginationFooter
+          {/* Pagination Footer Tab 2 menggunakan Template Standar */}
+          <TablePagination
             currentPage={safePageGuru}
-            totalPages={totalPagesGuru}
             pageSize={pageSizeGuru}
             totalItems={totalGuru}
             onPageChange={(page) => setCurrentPageGuru(page)}
             onPageSizeChange={(size) => {
-              setPageSizeGuru(size);
+              setPageSizeGuru(size as 10 | 20 | 30);
               setCurrentPageGuru(1);
             }}
             label="akun pendidik"
+            pageSizeOptions={[10, 20, 30]}
           />
         </div>
       )}
@@ -887,19 +936,37 @@ export default function FormPendidik({
               </button>
             </div>
 
-            <form onSubmit={handleCreateGuru} className="space-y-4">
+            {guruFormError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs leading-relaxed">
+                ⚠️ {guruFormError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateGuru} noValidate className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
                   Nama Lengkap Guru & Gelar <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  required
                   value={guruName}
-                  onChange={(e) => setGuruName(e.target.value)}
+                  onChange={(e) => {
+                    setGuruName(e.target.value);
+                    setGuruTouched((p) => ({ ...p, name: true }));
+                  }}
+                  onBlur={() => setGuruTouched((p) => ({ ...p, name: true }))}
                   placeholder="Contoh: Budi Santoso, S.Pd."
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs text-zinc-900 focus:outline-none transition ${
+                    getGuruNameError(guruName)
+                      ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
+                {getGuruNameError(guruName) && (
+                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                    {getGuruNameError(guruName)}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -907,42 +974,77 @@ export default function FormPendidik({
                   Email Akun Login <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  type="email"
-                  required
+                  type="text"
                   value={guruEmail}
-                  onChange={(e) => setGuruEmail(e.target.value)}
+                  onChange={(e) => {
+                    setGuruEmail(e.target.value);
+                    setGuruTouched((p) => ({ ...p, email: true }));
+                  }}
+                  onBlur={() => setGuruTouched((p) => ({ ...p, email: true }))}
                   placeholder="guru@sekolah.sch.id"
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs font-mono text-zinc-900 focus:outline-none transition ${
+                    getGuruEmailError(guruEmail)
+                      ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
+                {getGuruEmailError(guruEmail) && (
+                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                    {getGuruEmailError(guruEmail)}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Password Awal
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-zinc-700">
+                    Password Awal
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowGuruPassword(!showGuruPassword)}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-800"
+                  >
+                    {showGuruPassword ? "Sembunyikan" : "Tampilkan"}
+                  </button>
+                </div>
                 <input
-                  type="text"
+                  type={showGuruPassword ? "text" : "password"}
                   value={guruPassword}
-                  onChange={(e) => setGuruPassword(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  onChange={(e) => {
+                    setGuruPassword(e.target.value);
+                    setGuruTouched((p) => ({ ...p, password: true }));
+                  }}
+                  onBlur={() => setGuruTouched((p) => ({ ...p, password: true }))}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs font-mono text-zinc-900 focus:outline-none transition ${
+                    getGuruPasswordError(guruPassword)
+                      ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
-                <span className="block text-[11px] text-zinc-600 mt-1">
-                  Default: password123
-                </span>
+                {getGuruPasswordError(guruPassword) ? (
+                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                    {getGuruPasswordError(guruPassword)}
+                  </p>
+                ) : (
+                  <span className="block text-[11px] text-zinc-600 mt-1">
+                    Default: password123 (Minimal 6 karakter)
+                  </span>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-stone-200">
                 <button
                   type="button"
                   onClick={() => setIsAddGuruOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-medium border border-stone-300 hover:bg-stone-50 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-medium border border-stone-300 hover:bg-stone-50 transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="px-5 py-2 rounded-xl bg-[#1b4332] text-white text-xs font-semibold hover:bg-[#143225] disabled:opacity-50 transition"
+                  className="px-5 py-2 rounded-xl bg-[#1b4332] text-white text-xs font-semibold hover:bg-[#143225] disabled:opacity-50 transition cursor-pointer active:scale-95"
                 >
                   {isPending ? "Menyimpan..." : "Simpan Guru"}
                 </button>
@@ -1087,18 +1189,36 @@ export default function FormPendidik({
               </button>
             </div>
 
-            <form onSubmit={handleUpdateGuru} className="space-y-4">
+            {editGuruFormError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs leading-relaxed">
+                ⚠️ {editGuruFormError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateGuru} noValidate className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
                   Nama Lengkap & Gelar <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  required
                   value={editGuruName}
-                  onChange={(e) => setEditGuruName(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  onChange={(e) => {
+                    setEditGuruName(e.target.value);
+                    setEditGuruTouched((p) => ({ ...p, name: true }));
+                  }}
+                  onBlur={() => setEditGuruTouched((p) => ({ ...p, name: true }))}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs text-zinc-900 focus:outline-none transition ${
+                    getEditGuruNameError(editGuruName)
+                      ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
+                {getEditGuruNameError(editGuruName) && (
+                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                    {getEditGuruNameError(editGuruName)}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1106,25 +1226,59 @@ export default function FormPendidik({
                   Email Akun Login <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  type="email"
-                  required
+                  type="text"
                   value={editGuruEmail}
-                  onChange={(e) => setEditGuruEmail(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  onChange={(e) => {
+                    setEditGuruEmail(e.target.value);
+                    setEditGuruTouched((p) => ({ ...p, email: true }));
+                  }}
+                  onBlur={() => setEditGuruTouched((p) => ({ ...p, email: true }))}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs font-mono text-zinc-900 focus:outline-none transition ${
+                    getEditGuruEmailError(editGuruEmail)
+                      ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
+                {getEditGuruEmailError(editGuruEmail) && (
+                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                    {getEditGuruEmailError(editGuruEmail)}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Password Baru (Kosongkan jika tidak ingin mengubah password)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-zinc-700">
+                    Password Baru (Kosongkan jika tidak ingin mengubah)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditGuruPassword(!showEditGuruPassword)}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-800"
+                  >
+                    {showEditGuruPassword ? "Sembunyikan" : "Tampilkan"}
+                  </button>
+                </div>
                 <input
-                  type="password"
+                  type={showEditGuruPassword ? "text" : "password"}
                   value={editGuruPassword}
-                  onChange={(e) => setEditGuruPassword(e.target.value)}
+                  onChange={(e) => {
+                    setEditGuruPassword(e.target.value);
+                    setEditGuruTouched((p) => ({ ...p, password: true }));
+                  }}
+                  onBlur={() => setEditGuruTouched((p) => ({ ...p, password: true }))}
                   placeholder="Ketik password baru jika ingin mereset..."
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs font-mono text-zinc-900 focus:outline-none transition ${
+                    getEditGuruPasswordError(editGuruPassword)
+                      ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
+                {getEditGuruPasswordError(editGuruPassword) && (
+                  <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                    {getEditGuruPasswordError(editGuruPassword)}
+                  </p>
+                )}
               </div>
 
               {/* PENGATURAN STATUS KEAKTIFAN AKUN */}
@@ -1341,6 +1495,34 @@ export default function FormPendidik({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md) */}
+      {alertModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <CheckCircle2Icon className="h-8 w-8" />
+            </div>
+
+            <div>
+              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
+              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
+                {alertModal.message}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
+                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
+              >
+                Tutup & Selesai
+              </button>
+            </div>
           </div>
         </div>
       )}

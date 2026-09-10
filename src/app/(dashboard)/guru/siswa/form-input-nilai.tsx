@@ -1,61 +1,15 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { simpanNilaiBatchAction, NilaiInputItem } from "@/actions/nilai";
-
-interface SiswaItem {
-  id: string;
-  nisn: string;
-  nis: string;
-  nama: string;
-  jenisKelamin: string;
-}
-
-interface NilaiData {
-  siswaId: string;
-  nilaiTugas: number;
-  nilaiUTS: number;
-  nilaiUAS: number;
-  nilaiAkhir: number;
-  catatan: string | null;
-}
-
-interface PengampuOption {
-  id: string;
-  kelasId: string;
-  mapelId: string;
-  tahunAjaran: string;
-  kelas: {
-    id: string;
-    nama: string;
-    tingkat: number;
-  };
-  mapel: {
-    id: string;
-    kode: string;
-    nama: string;
-  };
-}
-
-interface TPItem {
-  id: string;
-  kode: string;
-  deskripsi: string;
-  tingkat: number;
-}
-
-interface FormInputNilaiProps {
-  daftarPengampu: PengampuOption[];
-  activePengampu: PengampuOption;
-  siswaList: SiswaItem[];
-  nilaiList: NilaiData[];
-  tpList: TPItem[];
-  selectedTahunAjaran: string;
-  selectedSemester: number;
-  isLocked: boolean;
-}
+import { FormInputNilaiProps } from "@/types/guru";
+import {
+  TablePaginationInfo,
+  TablePaginationNav,
+} from "@/components/shared/table-pagination";
+import { CheckCircle2Icon, AlertCircleIcon } from "@/components/shared/icons";
 
 export default function FormInputNilai({
   daftarPengampu,
@@ -70,6 +24,24 @@ export default function FormInputNilai({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Modal alert pop-up (sesuai aturan AGENTS.md)
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    type: "success" | "error";
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: "success",
+    title: "",
+    message: "",
+  });
+
+  // State pagination & pencarian siswa
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Inisialisasi state form per siswa
   const initialValues: Record<
@@ -100,9 +72,39 @@ export default function FormInputNilai({
 
   const [formData, setFormData] = useState(initialValues);
 
-  // Handle perubahan input angka
+  // Filter & Pagination data siswa
+  const filteredSiswaList = useMemo(() => {
+    if (!searchQuery.trim()) return siswaList;
+    const q = searchQuery.toLowerCase();
+    return siswaList.filter(
+      (s) =>
+        s.nama.toLowerCase().includes(q) ||
+        s.nisn.toLowerCase().includes(q) ||
+        s.nis.toLowerCase().includes(q)
+    );
+  }, [siswaList, searchQuery]);
+
+  const totalFiltered = filteredSiswaList.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedSiswaList = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return filteredSiswaList.slice(start, start + pageSize);
+  }, [filteredSiswaList, safeCurrentPage, pageSize]);
+
+  // Handle perubahan input angka dengan validasi batasan 0-100
   const handleScoreChange = (siswaId: string, field: "tugas" | "uts" | "uas", value: string) => {
     if (isLocked) return;
+
+    if (value !== "") {
+      const num = parseFloat(value);
+      if (!isNaN(num)) {
+        if (num < 0) value = "0";
+        else if (num > 100) value = "100";
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       [siswaId]: {
@@ -178,10 +180,47 @@ export default function FormInputNilai({
     });
   };
 
-  // Submit Simpan Nilai
+  // Submit Simpan Nilai dengan Validasi Lengkap
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+
+    // Validasi Form: Cek apakah ada nilai yang di luar rentang 0-100
+    for (const s of siswaList) {
+      const d = formData[s.id];
+      if (d) {
+        const t = parseFloat(d.tugas);
+        const u = parseFloat(d.uts);
+        const a = parseFloat(d.uas);
+        if (!isNaN(t) && (t < 0 || t > 100)) {
+          setAlertModal({
+            isOpen: true,
+            type: "error",
+            title: "Validasi Gagal",
+            message: `Nilai Tugas untuk ${s.nama} (${d.tugas}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`,
+          });
+          return;
+        }
+        if (!isNaN(u) && (u < 0 || u > 100)) {
+          setAlertModal({
+            isOpen: true,
+            type: "error",
+            title: "Validasi Gagal",
+            message: `Nilai UTS untuk ${s.nama} (${d.uts}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`,
+          });
+          return;
+        }
+        if (!isNaN(a) && (a < 0 || a > 100)) {
+          setAlertModal({
+            isOpen: true,
+            type: "error",
+            title: "Validasi Gagal",
+            message: `Nilai UAS untuk ${s.nama} (${d.uas}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`,
+          });
+          return;
+        }
+      }
+    }
 
     const items: NilaiInputItem[] = siswaList.map((s) => {
       const d = formData[s.id] || { tugas: "0", uts: "0", uas: "0", checkedTPs: [] };
@@ -211,8 +250,21 @@ export default function FormInputNilai({
 
       if (res.success) {
         setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          type: "success",
+          title: "Berhasil Menyimpan Nilai",
+          message: res.message,
+        });
+        router.refresh();
       } else {
         setMessage({ type: "error", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          type: "error",
+          title: "Gagal Menyimpan Nilai",
+          message: res.message,
+        });
       }
     });
   };
@@ -339,20 +391,9 @@ export default function FormInputNilai({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
           <div>
             <h3 className="font-bold text-zinc-900 text-sm font-poppins flex items-center gap-2">
-              <span>🎯</span>
               <span>Tujuan Pembelajaran (TP) Terdaftar ({tpList.length} TP)</span>
             </h3>
-            <p className="text-xs text-zinc-600 mt-0.5">
-              Daftar TP semester ini sebagai acuan ketercapaian kompetensi pembelajaran siswa.
-            </p>
           </div>
-          <Link
-            href={`/guru/tp?mapelId=${activePengampu.mapelId}&tingkat=${activePengampu.kelas.tingkat}`}
-            className="text-xs font-medium text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1"
-          >
-            <span>Kelola TP di Menu TP</span>
-            <span>&rarr;</span>
-          </Link>
         </div>
 
         {tpList.length === 0 ? (
@@ -409,7 +450,7 @@ export default function FormInputNilai({
             type="button"
             onClick={() => handleAutoFill(80)}
             disabled={isLocked}
-            className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-medium rounded-xl border border-stone-300 bg-white text-zinc-700 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs"
+            className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-medium rounded-xl border border-stone-300 bg-white text-zinc-700 hover:bg-stone-50 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs cursor-pointer"
             title={isLocked ? "Penilaian terkunci" : "Isi contoh nilai cepat dan centang TP otomatis untuk simulasi"}
           >
             ⚡ Auto-Fill Nilai & TP
@@ -418,7 +459,7 @@ export default function FormInputNilai({
             type="button"
             onClick={handleSubmit}
             disabled={isPending || isLocked}
-            className="flex-1 sm:flex-none px-5 py-2 text-xs font-semibold rounded-xl bg-[#1b4332] text-white hover:bg-[#143225] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none px-5 py-2 text-xs font-semibold rounded-xl bg-[#1b4332] text-white hover:bg-[#143225] disabled:opacity-40 disabled:cursor-not-allowed transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
           >
             {isPending ? (
               <>
@@ -440,7 +481,7 @@ export default function FormInputNilai({
         </div>
       </div>
 
-      {/* Pesan Notifikasi */}
+      {/* Pesan Notifikasi Banner */}
       {message && (
         <div
           className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
@@ -453,12 +494,61 @@ export default function FormInputNilai({
           <button
             type="button"
             onClick={() => setMessage(null)}
-            className="text-zinc-600 hover:text-zinc-900 font-bold ml-2"
+            className="text-zinc-600 hover:text-zinc-900 font-bold ml-2 cursor-pointer"
           >
             ✕
           </button>
         </div>
       )}
+
+      {/* Fitur Pencarian & Info Pagination */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Cari nama, NISN, atau NIPD..."
+              className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-stone-200 bg-white placeholder-zinc-400 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332] focus:outline-none transition shadow-2xs"
+            />
+            <span className="absolute left-3 top-2.5 text-zinc-400 text-xs">🔍</span>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-2 text-xs text-zinc-400 hover:text-zinc-600 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <span className="text-xs text-zinc-500 whitespace-nowrap hidden md:inline">
+              Ditemukan <strong className="text-zinc-800">{totalFiltered}</strong> dari {totalSiswa} siswa
+            </span>
+          )}
+        </div>
+
+        <TablePaginationInfo
+          currentPage={safeCurrentPage}
+          pageSize={pageSize}
+          totalItems={totalFiltered}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          onPageChange={(page) => setCurrentPage(page)}
+          label="siswa"
+          pageSizeOptions={[10, 20, 30, 50]}
+        />
+      </div>
 
       {/* Tabel Data Siswa & Input Nilai dengan Kolom Checkbox TP */}
       <div className="rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
@@ -482,131 +572,140 @@ export default function FormInputNilai({
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
-              {siswaList.map((siswa, idx) => {
-                const data = formData[siswa.id] || { tugas: "", uts: "", uas: "", checkedTPs: [] };
-                const na = hitungNilaiAkhir(data.tugas, data.uts, data.uas);
-                const pred = getPredikat(na);
+              {paginatedSiswaList.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-zinc-500">
+                    {searchQuery ? "Tidak ada siswa yang cocok dengan pencarian." : "Belum ada siswa di rombel ini."}
+                  </td>
+                </tr>
+              ) : (
+                paginatedSiswaList.map((siswa, idx) => {
+                  const globalIdx = (safeCurrentPage - 1) * pageSize + idx + 1;
+                  const data = formData[siswa.id] || { tugas: "", uts: "", uas: "", checkedTPs: [] };
+                  const na = hitungNilaiAkhir(data.tugas, data.uts, data.uas);
+                  const pred = getPredikat(na);
 
-                return (
-                  <tr key={siswa.id} className="hover:bg-stone-50/70 transition-colors">
-                    <td className="px-3 py-3.5 text-center text-zinc-600 font-mono">
-                      {idx + 1}
-                    </td>
+                  return (
+                    <tr key={siswa.id} className="hover:bg-stone-50/70 transition-colors">
+                      <td className="px-3 py-3.5 text-center text-zinc-600 font-mono">
+                        {globalIdx}
+                      </td>
 
-                    <td className="px-4 py-3.5">
-                      <div className="font-semibold text-zinc-900 text-sm">
-                        {siswa.nama}
-                      </div>
-                      <div className="text-[11px] text-zinc-600 font-mono mt-0.5 whitespace-nowrap">
-                        NISN: {siswa.nisn} • NIS: {siswa.nis}
-                      </div>
-                    </td>
-
-                    <td className="px-3 py-3.5 text-center whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                          siswa.jenisKelamin === "L"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : "bg-rose-50 text-rose-700 border-rose-200"
-                        }`}
-                      >
-                        {siswa.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}
-                      </span>
-                    </td>
-
-                    <td className="px-2 py-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        placeholder="0"
-                        disabled={isLocked}
-                        value={data.tugas}
-                        onChange={(e) => handleScoreChange(siswa.id, "tugas", e.target.value)}
-                        className="w-full text-center rounded-lg border border-stone-200 px-2 py-1.5 font-mono text-xs focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] disabled:bg-stone-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                      />
-                    </td>
-
-                    <td className="px-2 py-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        placeholder="0"
-                        disabled={isLocked}
-                        value={data.uts}
-                        onChange={(e) => handleScoreChange(siswa.id, "uts", e.target.value)}
-                        className="w-full text-center rounded-lg border border-stone-200 px-2 py-1.5 font-mono text-xs focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] disabled:bg-stone-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                      />
-                    </td>
-
-                    <td className="px-2 py-3">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.5"
-                        placeholder="0"
-                        disabled={isLocked}
-                        value={data.uas}
-                        onChange={(e) => handleScoreChange(siswa.id, "uas", e.target.value)}
-                        className="w-full text-center rounded-lg border border-stone-200 px-2 py-1.5 font-mono text-xs focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] disabled:bg-stone-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                      />
-                    </td>
-
-                    <td className="px-3 py-3 text-center">
-                      <div className="font-mono font-bold text-sm text-zinc-900">
-                        {na > 0 ? na : "-"}
-                      </div>
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border mt-1 ${pred.color}`}>
-                        {pred.label}
-                      </span>
-                    </td>
-
-                    {/* Kolom Ketercapaian TP Langsung */}
-                    <td className="px-4 py-3">
-                      {tpList.length === 0 ? (
-                        <div className="text-zinc-600 text-xs italic">
-                          Belum ada TP terdaftar untuk mapel ini di semester {selectedSemester}.
+                      <td className="px-4 py-3.5">
+                        <div className="font-semibold text-zinc-900 text-sm">
+                          {siswa.nama}
                         </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {tpList.map((tp) => {
-                            const isChecked = data.checkedTPs.includes(tp.id);
-                            return (
-                              <button
-                                key={tp.id}
-                                type="button"
-                                disabled={isLocked}
-                                onClick={() => handleToggleTP(siswa.id, tp.id)}
-                                title={`${tp.kode}: ${tp.deskripsi} ${isLocked ? "(Terkunci)" : "(Klik untuk centang)"}`}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:cursor-not-allowed disabled:opacity-85 ${
-                                  isChecked
-                                    ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-bold ring-1 ring-emerald-300/30"
-                                    : "bg-stone-50 text-zinc-600 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
-                                }`}
-                              >
-                                <span
-                                  className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
+                        <div className="text-[11px] text-zinc-600 font-mono mt-0.5 whitespace-nowrap">
+                          NISN: {siswa.nisn} • NIPD: {siswa.nis}
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                            siswa.jenisKelamin === "L"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
+                          }`}
+                        >
+                          {siswa.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}
+                        </span>
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          placeholder="0"
+                          disabled={isLocked}
+                          value={data.tugas}
+                          onChange={(e) => handleScoreChange(siswa.id, "tugas", e.target.value)}
+                          className="w-full text-center rounded-lg border border-stone-200 px-2 py-1.5 font-mono text-xs focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] disabled:bg-stone-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          placeholder="0"
+                          disabled={isLocked}
+                          value={data.uts}
+                          onChange={(e) => handleScoreChange(siswa.id, "uts", e.target.value)}
+                          className="w-full text-center rounded-lg border border-stone-200 px-2 py-1.5 font-mono text-xs focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] disabled:bg-stone-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          placeholder="0"
+                          disabled={isLocked}
+                          value={data.uas}
+                          onChange={(e) => handleScoreChange(siswa.id, "uas", e.target.value)}
+                          className="w-full text-center rounded-lg border border-stone-200 px-2 py-1.5 font-mono text-xs focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] disabled:bg-stone-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                        />
+                      </td>
+
+                      <td className="px-3 py-3 text-center">
+                        <div className="font-mono font-bold text-sm text-zinc-900">
+                          {na > 0 ? na : "-"}
+                        </div>
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border mt-1 ${pred.color}`}>
+                          {pred.label}
+                        </span>
+                      </td>
+
+                      {/* Kolom Ketercapaian TP Langsung */}
+                      <td className="px-4 py-3">
+                        {tpList.length === 0 ? (
+                          <div className="text-zinc-600 text-xs italic">
+                            Belum ada TP terdaftar untuk mapel ini di semester {selectedSemester}.
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {tpList.map((tp) => {
+                              const isChecked = data.checkedTPs.includes(tp.id);
+                              return (
+                                <button
+                                  key={tp.id}
+                                  type="button"
+                                  disabled={isLocked}
+                                  onClick={() => handleToggleTP(siswa.id, tp.id)}
+                                  title={`${tp.kode}: ${tp.deskripsi} ${isLocked ? "(Terkunci)" : "(Klik untuk centang)"}`}
+                                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-85 ${
                                     isChecked
-                                      ? "bg-emerald-600 text-white font-bold"
-                                      : "border border-stone-300 text-transparent"
+                                      ? "bg-emerald-50 text-emerald-800 border-emerald-300 font-bold ring-1 ring-emerald-300/30"
+                                      : "bg-stone-50 text-zinc-600 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
                                   }`}
                                 >
-                                  ✓
-                                </span>
-                                <span className="font-mono">{tp.kode}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                                  <span
+                                    className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] ${
+                                      isChecked
+                                        ? "bg-emerald-600 text-white font-bold"
+                                        : "border border-stone-300 text-transparent"
+                                    }`}
+                                  >
+                                    ✓
+                                  </span>
+                                  <span className="font-mono">{tp.kode}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -622,13 +721,59 @@ export default function FormInputNilai({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isPending}
-            className="w-full sm:w-auto px-5 py-2 text-xs font-semibold rounded-xl bg-[#1b4332] text-white hover:bg-[#143225] disabled:opacity-50 transition shadow-xs"
+            disabled={isPending || isLocked}
+            className="w-full sm:w-auto px-5 py-2 text-xs font-semibold rounded-xl bg-[#1b4332] text-white hover:bg-[#143225] disabled:opacity-50 transition shadow-xs cursor-pointer"
           >
             {isPending ? "Sedang Menyimpan Data..." : "Simpan Semua Nilai Siswa"}
           </button>
         </div>
       </div>
+
+      {/* Centered Pagination Nav (Prev / Next & Angka Halaman) */}
+      <TablePaginationNav
+        currentPage={safeCurrentPage}
+        pageSize={pageSize}
+        totalItems={totalFiltered}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
+
+      {/* Alert Modal Pop-up Berhasil/Gagal (Sesuai Aturan AGENTS.md) */}
+      {alertModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div
+              className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center ${
+                alertModal.type === "success"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-rose-100 text-rose-700"
+              }`}
+            >
+              {alertModal.type === "success" ? (
+                <CheckCircle2Icon className="h-8 w-8" />
+              ) : (
+                <AlertCircleIcon className="h-8 w-8" />
+              )}
+            </div>
+
+            <div>
+              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
+              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
+                {alertModal.message}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
+                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
+              >
+                Tutup & Selesai
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
-export async function createMapelAction(payload: { kode: string; nama: string; isMulok?: boolean }) {
+export async function createMapelAction(payload: { kode: string; nama: string; isMulok?: boolean; isSeni?: boolean }) {
   await requireUser();
-  const { kode, nama, isMulok = false } = payload;
+  const { kode, nama, isMulok = false, isSeni = false } = payload;
 
   if (!kode || !nama) {
     return { success: false, message: "Kode mapel dan nama mata pelajaran wajib diisi." };
@@ -27,6 +27,7 @@ export async function createMapelAction(payload: { kode: string; nama: string; i
         kode: cleanKode,
         nama: nama.trim(),
         isMulok: !!isMulok,
+        isSeni: !!isSeni,
       },
     });
 
@@ -43,9 +44,9 @@ export async function createMapelAction(payload: { kode: string; nama: string; i
   }
 }
 
-export async function updateMapelAction(payload: { id: string; kode: string; nama: string; isMulok?: boolean }) {
+export async function updateMapelAction(payload: { id: string; kode: string; nama: string; isMulok?: boolean; isSeni?: boolean }) {
   await requireUser();
-  const { id, kode, nama, isMulok } = payload;
+  const { id, kode, nama, isMulok, isSeni } = payload;
 
   if (!id || !kode || !nama) {
     return { success: false, message: "Data tidak lengkap." };
@@ -72,6 +73,7 @@ export async function updateMapelAction(payload: { id: string; kode: string; nam
         kode: cleanKode,
         nama: nama.trim(),
         ...(isMulok !== undefined ? { isMulok: !!isMulok } : {}),
+        ...(isSeni !== undefined ? { isSeni: !!isSeni } : {}),
       },
     });
 

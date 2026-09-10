@@ -88,8 +88,95 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
     );
   };
 
-  const mapelReguler = nilaiList.filter((n) => !checkIsMulok(n));
+  // Deteksi kelompok Seni (Seni Pilihan)
+  const checkIsSeni = (item: NilaiRaporItem) => {
+    if (typeof item.isSeni === "boolean") {
+      return item.isSeni;
+    }
+    const n = (item.mapelNama || "").toLowerCase().trim();
+    const k = (item.mapelKode || "").toLowerCase().trim();
+    return (
+      n.startsWith("seni") ||
+      n.includes("seni dan budaya") ||
+      n.includes("seni pilihan") ||
+      n.includes("seni musik") ||
+      n.includes("seni rupa") ||
+      n.includes("seni tari") ||
+      n.includes("seni teater") ||
+      n.includes("prakarya") ||
+      k.startsWith("seni") ||
+      k.startsWith("sb")
+    );
+  };
+
+  // Deteksi mapel umum yang berada setelah kelompok Seni (PJOK, Bahasa Inggris, dll.)
+  const isMapelSetelahSeni = (item: NilaiRaporItem) => {
+    const n = (item.mapelNama || "").toLowerCase().trim();
+    const k = (item.mapelKode || "").toLowerCase().trim();
+    return (
+      n.includes("jasmani") ||
+      n.includes("olahraga") ||
+      n.includes("pjok") ||
+      k.includes("pjok") ||
+      n.includes("inggris") ||
+      k.includes("big") ||
+      k === "ing"
+    );
+  };
+
+  const getSebelumSeniWeight = (item: NilaiRaporItem): number => {
+    const n = (item.mapelNama || "").toLowerCase();
+    const k = (item.mapelKode || "").toLowerCase();
+    if (n.includes("agama") || k.includes("pai") || k.includes("pak")) return 1;
+    if (n.includes("pancasila") || n.includes("ppkn") || k.includes("ppkn")) return 2;
+    if (n.includes("indonesia") || k === "bin" || k.includes("indo")) return 3;
+    if (n.includes("matematika") || k === "mat") return 4;
+    if (n.includes("ipas") || n.includes("alam dan sosial") || n.includes("ipa") || n.includes("ips")) return 5;
+    return 6;
+  };
+
+  const getSetelahSeniWeight = (item: NilaiRaporItem): number => {
+    const n = (item.mapelNama || "").toLowerCase();
+    const k = (item.mapelKode || "").toLowerCase();
+    if (n.includes("jasmani") || n.includes("olahraga") || k.includes("pjok")) return 1;
+    if (n.includes("inggris") || k.includes("big") || k.includes("ing")) return 2;
+    return 3;
+  };
+
+  const getSeniLabel = (idx: number, nama: string): string => {
+    const trimmed = (nama || "").trim();
+    if (/^[a-z]\.\s+/i.test(trimmed)) {
+      return trimmed;
+    }
+    const letter = String.fromCharCode(97 + idx); // a, b, c, ...
+    return `${letter}. ${trimmed}`;
+  };
+
+  const nonMulokList = nilaiList.filter((n) => !checkIsMulok(n));
   const mapelMulok = nilaiList.filter((n) => checkIsMulok(n));
+
+  const mapelSebelumSeni = nonMulokList
+    .filter((n) => !checkIsSeni(n) && !isMapelSetelahSeni(n))
+    .sort((a, b) => getSebelumSeniWeight(a) - getSebelumSeniWeight(b));
+
+  const mapelSeni = nonMulokList.filter((n) => checkIsSeni(n));
+
+  const mapelSetelahSeni = nonMulokList
+    .filter((n) => !checkIsSeni(n) && isMapelSetelahSeni(n))
+    .sort((a, b) => getSetelahSeniWeight(a) - getSetelahSeniWeight(b));
+
+  // Penomoran berurutan rapi
+  let runningNo = 1;
+  const listSebelumSeni = mapelSebelumSeni.map((m) => ({
+    ...m,
+    rowNo: runningNo++,
+  }));
+  const seniNo = mapelSeni.length > 0 ? runningNo++ : null;
+  const listSetelahSeni = mapelSetelahSeni.map((m) => ({
+    ...m,
+    rowNo: runningNo++,
+  }));
+  const mulokNo = mapelMulok.length > 0 ? runningNo++ : null;
 
   // Data Kokurikuler (P5) dinamis
   const listKokurikuler = pelengkap.kokurikuler || [];
@@ -124,7 +211,7 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
               </span>
             </div>
             <div className="flex">
-              <span className="w-32 text-black">NISN / NIS</span>
+              <span className="w-32 text-black">NISN / NIPD</span>
               <span className="w-4 font-semibold">:</span>
               <span className="font-semibold text-black">
                 {siswa.nisn || "-"} / {siswa.nis || "-"}
@@ -198,86 +285,39 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
               </tr>
             </thead>
             <tbody>
-              {/* Mapel Reguler */}
-              {mapelReguler.length === 0 ? (
+              {/* Jika belum ada data nilai sama sekali */}
+              {listSebelumSeni.length === 0 &&
+              mapelSeni.length === 0 &&
+              listSetelahSeni.length === 0 &&
+              mapelMulok.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="border border-black py-4 text-center text-zinc-500 italic">
                     Belum ada data nilai mata pelajaran.
                   </td>
                 </tr>
               ) : (
-                mapelReguler.map((n, idx) => {
-                  const capaian = getDeskripsiCapaian(
-                    siswa.nama,
-                    n.mapelNama,
-                    n.nilaiAkhir,
-                    n.capaianKompetensi,
-                    n.capaianTinggi,
-                    n.capaianRendah
-                  );
-
-                  return (
-                    <tr key={idx} className="align-top">
-                      <td className="border border-black py-2 px-1 text-center font-medium">
-                        {idx + 1}
-                      </td>
-                      <td className="border border-black py-2 px-2.5 font-medium text-black">
-                        {n.mapelNama}
-                      </td>
-                      <td className="border border-black py-2 px-1 text-center font-bold">
-                        {n.nilaiAkhir > 0 ? n.nilaiAkhir : "-"}
-                      </td>
-                      <td className="border border-black p-0 leading-relaxed text-black">
-                        {capaian && (capaian.tinggi || capaian.rendah) ? (
-                          <>
-                            {capaian.tinggi && (
-                              <div className={`p-2 ${capaian.rendah ? "border-b border-zinc-400" : ""}`}>
-                                {capaian.tinggi}
-                              </div>
-                            )}
-                            {capaian.rendah && (
-                              <div className="p-2">
-                                {capaian.rendah}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="p-2 text-center text-zinc-400 font-mono">-</div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-
-              {/* Baris Muatan Lokal (Hanya ditampilkan jika ada mata pelajaran Muatan Lokal di kelas ini) */}
-              {mapelMulok.length > 0 && (
                 <>
-                  <tr>
-                    <td className="border border-black py-1 px-1 text-center font-medium">
-                      {mapelReguler.length + 1}
-                    </td>
-                    <td className="border border-black py-1 px-2.5 font-semibold text-black" colSpan={3}>
-                      Muatan Lokal
-                    </td>
-                  </tr>
-                  {mapelMulok.map((m, mIdx) => {
+                  {/* 1. Mapel Umum Sebelum Seni (Agama, Pendidikan Pancasila, Bahasa Indonesia, Matematika, IPAS) */}
+                  {listSebelumSeni.map((n) => {
                     const capaian = getDeskripsiCapaian(
                       siswa.nama,
-                      m.mapelNama,
-                      m.nilaiAkhir,
-                      m.capaianKompetensi,
-                      m.capaianTinggi,
-                      m.capaianRendah
+                      n.mapelNama,
+                      n.nilaiAkhir,
+                      n.capaianKompetensi,
+                      n.capaianTinggi,
+                      n.capaianRendah
                     );
+
                     return (
-                      <tr key={`mulok-${mIdx}`} className="align-top">
-                        <td className="border border-black py-2 px-1 text-center"></td>
-                        <td className="border border-black py-2 px-2.5 pl-5 font-medium text-black">
-                          {mIdx + 1} {m.mapelNama}
+                      <tr key={n.mapelKode || n.mapelNama} className="align-top">
+                        <td className="border border-black py-2 px-1 text-center font-medium">
+                          {n.rowNo}
+                        </td>
+                        <td className="border border-black py-2 px-2.5 font-medium text-black">
+                          {n.mapelNama}
                         </td>
                         <td className="border border-black py-2 px-1 text-center font-bold">
-                          {m.nilaiAkhir > 0 ? m.nilaiAkhir : "-"}
+                          {n.nilaiAkhir > 0 ? n.nilaiAkhir : "-"}
                         </td>
                         <td className="border border-black p-0 leading-relaxed text-black">
                           {capaian && (capaian.tinggi || capaian.rendah) ? (
@@ -300,6 +340,156 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
                       </tr>
                     );
                   })}
+
+                  {/* 2. Section Seni Pilihan (Sesuai Kurikulum Merdeka) */}
+                  {mapelSeni.length > 0 && (
+                    <>
+                      <tr>
+                        <td className="border border-black py-1.5 px-1 text-center font-medium">
+                          {seniNo}
+                        </td>
+                        <td className="border border-black py-1.5 px-2.5 font-semibold text-black" colSpan={3}>
+                          Seni Pilihan
+                        </td>
+                      </tr>
+                      {mapelSeni.map((sMapel, sIdx) => {
+                        const capaian = getDeskripsiCapaian(
+                          siswa.nama,
+                          sMapel.mapelNama,
+                          sMapel.nilaiAkhir,
+                          sMapel.capaianKompetensi,
+                          sMapel.capaianTinggi,
+                          sMapel.capaianRendah
+                        );
+                        return (
+                          <tr key={`seni-${sIdx}`} className="align-top">
+                            <td className="border border-black py-2 px-1 text-center"></td>
+                            <td className="border border-black py-2 px-2.5 pl-5 font-medium text-black">
+                              {getSeniLabel(sIdx, sMapel.mapelNama)}
+                            </td>
+                            <td className="border border-black py-2 px-1 text-center font-bold">
+                              {sMapel.nilaiAkhir > 0 ? sMapel.nilaiAkhir : "-"}
+                            </td>
+                            <td className="border border-black p-0 leading-relaxed text-black">
+                              {capaian && (capaian.tinggi || capaian.rendah) ? (
+                                <>
+                                  {capaian.tinggi && (
+                                    <div className={`p-2 ${capaian.rendah ? "border-b border-zinc-400" : ""}`}>
+                                      {capaian.tinggi}
+                                    </div>
+                                  )}
+                                  {capaian.rendah && (
+                                    <div className="p-2">
+                                      {capaian.rendah}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="p-2 text-center text-zinc-400 font-mono">-</div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
+
+                  {/* 3. Mapel Umum Setelah Seni (PJOK, Bahasa Inggris) */}
+                  {listSetelahSeni.map((n) => {
+                    const capaian = getDeskripsiCapaian(
+                      siswa.nama,
+                      n.mapelNama,
+                      n.nilaiAkhir,
+                      n.capaianKompetensi,
+                      n.capaianTinggi,
+                      n.capaianRendah
+                    );
+
+                    return (
+                      <tr key={n.mapelKode || n.mapelNama} className="align-top">
+                        <td className="border border-black py-2 px-1 text-center font-medium">
+                          {n.rowNo}
+                        </td>
+                        <td className="border border-black py-2 px-2.5 font-medium text-black">
+                          {n.mapelNama}
+                        </td>
+                        <td className="border border-black py-2 px-1 text-center font-bold">
+                          {n.nilaiAkhir > 0 ? n.nilaiAkhir : "-"}
+                        </td>
+                        <td className="border border-black p-0 leading-relaxed text-black">
+                          {capaian && (capaian.tinggi || capaian.rendah) ? (
+                            <>
+                              {capaian.tinggi && (
+                                <div className={`p-2 ${capaian.rendah ? "border-b border-zinc-400" : ""}`}>
+                                  {capaian.tinggi}
+                                </div>
+                              )}
+                              {capaian.rendah && (
+                                <div className="p-2">
+                                  {capaian.rendah}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="p-2 text-center text-zinc-400 font-mono">-</div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* 4. Baris Muatan Lokal */}
+                  {mapelMulok.length > 0 && (
+                    <>
+                      <tr>
+                        <td className="border border-black py-1 px-1 text-center font-medium">
+                          {mulokNo}
+                        </td>
+                        <td className="border border-black py-1 px-2.5 font-semibold text-black" colSpan={3}>
+                          Muatan Lokal
+                        </td>
+                      </tr>
+                      {mapelMulok.map((m, mIdx) => {
+                        const capaian = getDeskripsiCapaian(
+                          siswa.nama,
+                          m.mapelNama,
+                          m.nilaiAkhir,
+                          m.capaianKompetensi,
+                          m.capaianTinggi,
+                          m.capaianRendah
+                        );
+                        return (
+                          <tr key={`mulok-${mIdx}`} className="align-top">
+                            <td className="border border-black py-2 px-1 text-center"></td>
+                            <td className="border border-black py-2 px-2.5 pl-5 font-medium text-black">
+                              {mIdx + 1} {m.mapelNama}
+                            </td>
+                            <td className="border border-black py-2 px-1 text-center font-bold">
+                              {m.nilaiAkhir > 0 ? m.nilaiAkhir : "-"}
+                            </td>
+                            <td className="border border-black p-0 leading-relaxed text-black">
+                              {capaian && (capaian.tinggi || capaian.rendah) ? (
+                                <>
+                                  {capaian.tinggi && (
+                                    <div className={`p-2 ${capaian.rendah ? "border-b border-zinc-400" : ""}`}>
+                                      {capaian.tinggi}
+                                    </div>
+                                  )}
+                                  {capaian.rendah && (
+                                    <div className="p-2">
+                                      {capaian.rendah}
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="p-2 text-center text-zinc-400 font-mono">-</div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
                 </>
               )}
 

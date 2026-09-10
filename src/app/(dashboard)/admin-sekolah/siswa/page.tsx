@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import FormSiswa, { SiswaRecord } from "./form-siswa";
+import FormSiswa from "./form-siswa";
+import { SiswaRecord } from "@/types/admin-sekolah";
 
 export default async function AdminSiswaPage() {
   await requireUser();
@@ -29,6 +30,10 @@ export default async function AdminSiswaPage() {
     nis: s.nis,
     nama: s.nama,
     jenisKelamin: s.jenisKelamin,
+    nik: s.nik,
+    tempatLahir: s.tempatLahir,
+    tanggalLahir: s.tanggalLahir,
+    agama: s.agama,
     alamat: s.alamat,
     kelasId: s.kelasId,
     kelas: s.kelas,
@@ -58,7 +63,7 @@ export default async function AdminSiswaPage() {
           Data Peserta Didik (Siswa)
         </h1>
         <p className="mt-1 text-sm text-emerald-100/90 max-w-2xl">
-          Kelola data induk peserta didik, penomoran NISN & NIS resmi, mutasi rombongan belajar, dan biodata profil siswa.
+          Kelola data induk peserta didik, penomoran NISN & NIPD resmi, mutasi rombongan belajar, dan biodata profil siswa.
         </p>
       </div>
 

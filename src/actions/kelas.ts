@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { sanitizeInput } from "@/lib/sanitize";
 
 export async function createKelasAction(payload: {
   nama: string;
@@ -18,13 +19,27 @@ export async function createKelasAction(payload: {
   const user = await requireUser();
   const { nama, tingkat, tahunAjaran, waliKelasId, mapelPengampu } = payload;
 
-  if (!nama || !tingkat || !tahunAjaran) {
-    return { success: false, message: "Nama kelas, tingkat, dan tahun ajaran wajib diisi." };
+  const cleanNama = sanitizeInput(nama || "", 20).toUpperCase();
+
+  if (!cleanNama || !tingkat || !tahunAjaran) {
+    return { success: false, message: "Nama rombel, tingkat kelas, dan tahun ajaran wajib diisi." };
+  }
+
+  if (/[<>]/.test(nama || "")) {
+    return {
+      success: false,
+      message: "Karakter tag HTML (< atau >) tidak diizinkan untuk alasan keamanan sistem.",
+    };
+  }
+
+  if (cleanNama.length < 2) {
+    return {
+      success: false,
+      message: "Nama rombel minimal harus terdiri dari 2 karakter (contoh: 1A, 5C).",
+    };
   }
 
   try {
-    const cleanNama = nama.trim().toUpperCase();
-
     const existing = await prisma.kelas.findUnique({
       where: { nama: cleanNama },
     });
@@ -121,11 +136,27 @@ export async function updateKelasAction(payload: {
   await requireUser();
   const { id, nama, tingkat, waliKelasId, mapelPengampu } = payload;
 
-  if (!id || !nama || !tingkat) {
-    return { success: false, message: "Data tidak lengkap." };
+  const cleanNama = sanitizeInput(nama || "", 20).toUpperCase();
+
+  if (!id || !cleanNama || !tingkat) {
+    return { success: false, message: "ID, nama rombel, dan tingkat kelas wajib diisi." };
   }
 
-  // Validasi jika ada mapel yang dipilih tapi belum ada guru
+  if (/[<>]/.test(nama || "")) {
+    return {
+      success: false,
+      message: "Karakter tag HTML (< atau >) tidak diizinkan untuk alasan keamanan sistem.",
+    };
+  }
+
+  if (cleanNama.length < 2) {
+    return {
+      success: false,
+      message: "Nama rombel minimal harus terdiri dari 2 karakter (contoh: 1A, 5C).",
+    };
+  }
+
+  // Validasi mapelPengampu jika ada
   if (mapelPengampu && mapelPengampu.length > 0) {
     for (const item of mapelPengampu) {
       if (!item.guruId) {
@@ -138,8 +169,6 @@ export async function updateKelasAction(payload: {
   }
 
   try {
-    const cleanNama = nama.trim().toUpperCase();
-
     // Cek duplikasi nama
     const existing = await prisma.kelas.findFirst({
       where: {

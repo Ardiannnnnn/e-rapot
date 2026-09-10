@@ -260,6 +260,7 @@ export default async function WaliKelasCetakPage(props: {
           mapelKode: pmp.mapel.kode,
           mapelNama: pmp.mapel.nama,
           isMulok: pmp.mapel.isMulok,
+          isSeni: pmp.mapel.isSeni,
           nilaiAkhir: 0,
           capaianKompetensi: undefined,
           capaianTinggi: undefined,
@@ -313,6 +314,7 @@ export default async function WaliKelasCetakPage(props: {
         mapelKode: pmp.mapel.kode,
         mapelNama: pmp.mapel.nama,
         isMulok: pmp.mapel.isMulok,
+        isSeni: pmp.mapel.isSeni,
         nilaiAkhir,
         capaianKompetensi:
           !catatanStr.startsWith("TP Tercapai:") && catatanStr.length > 0

@@ -29,11 +29,8 @@ export default async function SuperAdminDashboardPage() {
             Portal Pemilik Platform SaaS • Multi-Tenant Level
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
-            Panel Super Admin, {user.name} 🌐
+            Panel Super Admin, {user.name} 
           </h1>
-          <p className="mt-1.5 text-sm text-emerald-100/90 max-w-xl">
-            Kelola data seluruh instansi sekolah binaan, registrasi tenant baru, kontrol lisensi platform, dan pantau statistik global.
-          </p>
         </div>
       </div>
 
@@ -83,18 +80,18 @@ export default async function SuperAdminDashboardPage() {
             <h2 className="text-base font-bold text-zinc-900 font-poppins">Daftar Sekolah Binaan</h2>
             <p className="text-xs text-zinc-500">Daftar instansi penyewa yang terdaftar di sistem e-raport</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/super-admin/sekolah/tambah"
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white transition shadow-xs flex items-center gap-1.5"
-            >
-              <span>+</span> Tambah Sekolah Baru
-            </Link>
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/super-admin/sekolah"
-              className="text-xs font-semibold px-4 py-2.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-zinc-700 transition"
+              className="text-xs font-semibold px-4 py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white transition shadow-xs flex items-center gap-1.5"
             >
-              Lihat Semua
+              <span>🏛️</span> Kelola Sekolah
+            </Link>
+            <Link
+              href="/super-admin/operator"
+              className="text-xs font-semibold px-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition flex items-center gap-1.5"
+            >
+              <span>👥</span> Kelola Operator
             </Link>
           </div>
         </div>
@@ -103,7 +100,7 @@ export default async function SuperAdminDashboardPage() {
           <div className="py-12 text-center">
             <p className="text-sm text-zinc-500 font-medium">Belum ada data sekolah yang didaftarkan.</p>
             <Link
-              href="/super-admin/sekolah/tambah"
+              href="/super-admin/sekolah"
               className="mt-3 inline-block text-xs font-semibold text-[#1b4332] hover:underline"
             >
               Daftarkan sekolah pertama sekarang &rarr;

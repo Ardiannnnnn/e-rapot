@@ -23,6 +23,7 @@ model Sekolah {
   kepalaSekolah String?
   nipKepsek     String?
   status        String   @default("AKTIF") // AKTIF / NONAKTIF
+  isStatus      Boolean  @default(true) // true = 1 (Aktif), false = 0 (Nonaktif / Soft Deleted)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -80,6 +81,10 @@ model Siswa {
   nis          String   @unique
   nama         String
   jenisKelamin String   // "L" / "P"
+  nik          String?  // NIK Kependudukan (16 digit)
+  tempatLahir  String?  // Kota/Kabupaten tempat lahir
+  tanggalLahir String?  // Format tanggal lahir (misal: "30/03/2015" atau "2015-03-30")
+  agama        String?  // Agama (misal: "Islam", "Kristen", dll)
   alamat       String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -96,6 +101,7 @@ model MataPelajaran {
   kode      String   @unique // Contoh: "MAT", "IPA"
   nama      String   // Contoh: "Matematika"
   isMulok   Boolean  @default(false)
+  isSeni    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

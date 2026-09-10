@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import FormPeriode, { PeriodeItem } from "./form-periode";
+import FormPeriode from "./form-periode";
+import { PeriodeItem } from "@/types/admin-sekolah";
 
 export default async function AdminTahunAjaranPage() {
   const user = await requireUser();

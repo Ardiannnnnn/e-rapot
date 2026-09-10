@@ -3,7 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client";
 
 // Version token untuk memaksa regenerasi instance Prisma Client di memory Next.js dev saat schema berubah
-const PRISMA_CLIENT_VERSION = "2026-09-08-mulok-v2";
+const PRISMA_CLIENT_VERSION = "2026-09-10-seni-v1";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;

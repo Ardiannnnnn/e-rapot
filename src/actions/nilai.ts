@@ -27,6 +27,21 @@ export async function simpanNilaiBatchAction(payload: {
     return { success: false, message: "Data penilaian tidak lengkap." };
   }
 
+  // Validasi batas angka nilai (0 - 100)
+  for (const item of items) {
+    if (
+      isNaN(item.nilaiTugas) || item.nilaiTugas < 0 || item.nilaiTugas > 100 ||
+      isNaN(item.nilaiUTS) || item.nilaiUTS < 0 || item.nilaiUTS > 100 ||
+      isNaN(item.nilaiUAS) || item.nilaiUAS < 0 || item.nilaiUAS > 100 ||
+      isNaN(item.nilaiAkhir) || item.nilaiAkhir < 0 || item.nilaiAkhir > 100
+    ) {
+      return {
+        success: false,
+        message: "Format nilai tidak valid. Nilai Tugas, UTS, dan UAS harus berada di antara 0 sampai 100.",
+      };
+    }
+  }
+
   try {
     // Cek apakah periode akademik sedang dikunci oleh Admin Sekolah
     if (user.sekolahId) {

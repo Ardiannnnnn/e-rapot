@@ -4,6 +4,7 @@ export interface NilaiRaporItem {
   mapelKode: string;
   mapelNama: string;
   isMulok?: boolean;
+  isSeni?: boolean;
   nilaiAkhir: number;
   capaianKompetensi?: string;
   capaianTinggi?: string;

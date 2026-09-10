@@ -116,7 +116,7 @@ export default function FormImportNilaiClient({
     const headers = [
       "No",
       "NISN",
-      "NIS",
+      "NIPD",
       "Nama Peserta Didik",
       "Nilai Tugas (0-100)",
       "Nilai UTS (0-100)",
@@ -143,7 +143,7 @@ export default function FormImportNilaiClient({
     ws["!cols"] = [
       { wch: 6 },  // No
       { wch: 15 }, // NISN
-      { wch: 12 }, // NIS
+      { wch: 12 }, // NIPD
       { wch: 30 }, // Nama
       { wch: 20 }, // Tugas
       { wch: 20 }, // UTS

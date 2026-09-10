@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import FormKelas, { KelasItem, GuruOption } from "./form-kelas";
+import FormKelas from "./form-kelas";
+import { KelasItem, GuruOption } from "@/types/admin-sekolah";
 
 export default async function AdminKelasPage() {
   const user = await requireUser();

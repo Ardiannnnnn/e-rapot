@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import FormPendidik, { GuruItem, PengampuRecord } from "./form-pendidik";
+import FormPendidik from "./form-pendidik";
+import { GuruItem, PengampuRecord } from "@/types/admin-sekolah";
 
 export default async function AdminPendidikPage() {
   const user = await requireUser();

@@ -22,19 +22,58 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
   const [alamat, setAlamat] = useState(sekolah.alamat || "");
   const [kepalaSekolah, setKepalaSekolah] = useState(sekolah.kepalaSekolah || "");
   const [nipKepsek, setNipKepsek] = useState(sekolah.nipKepsek || "");
+  const [submitted, setSubmitted] = useState(false);
+
+  // Evaluasi kesalahan NPSN secara realtime
+  const getNpsnError = (val: string) => {
+    if (!val) {
+      return submitted ? "NPSN wajib diisi." : "";
+    }
+    if (/[^\d]/.test(val)) {
+      return "NPSN hanya boleh berisi angka (tidak boleh ada huruf, spasi, atau karakter lain).";
+    }
+    if (val.length !== 8) {
+      return `NPSN harus tepat 8 digit angka (saat ini ${val.length}/8 digit).`;
+    }
+    return "";
+  };
+
+  // Evaluasi kesalahan NIP Kepala Sekolah secara realtime
+  const getNipError = (val: string) => {
+    if (!val || val.trim() === "-") return "";
+    if (/[^\d\s]/.test(val)) {
+      return "NIP hanya boleh berisi angka dan spasi (tidak boleh ada huruf atau simbol).";
+    }
+    const digits = val.replace(/\s/g, "");
+    if (digits.length !== 18) {
+      return `NIP harus tepat 18 digit angka (saat ini ${digits.length}/18 digit). Contoh: 19780101 200501 1 002`;
+    }
+    return "";
+  };
+
+  const npsnError = getNpsnError(npsn);
+  const nipError = getNipError(nipKepsek);
+  const isNpsnValid = npsn.length === 8 && !/[^\d]/.test(npsn);
+  const isNipValid = nipKepsek.trim() !== "" && nipKepsek.trim() !== "-" && nipKepsek.replace(/\s/g, "").length === 18 && !/[^\d\s]/.test(nipKepsek);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
     setMessage(null);
+
+    if (npsnError || nipError || !npsn.trim() || !nama.trim()) {
+      setMessage({ type: "error", text: "Silakan periksa dan perbaiki input yang masih berwarna merah." });
+      return;
+    }
 
     startTransition(async () => {
       const res = await updateProfilSekolahAction({
         sekolahId: sekolah.id,
-        npsn,
-        nama,
-        alamat,
-        kepalaSekolah,
-        nipKepsek,
+        npsn: npsn.trim(),
+        nama: nama.trim(),
+        alamat: alamat.trim(),
+        kepalaSekolah: kepalaSekolah.trim(),
+        nipKepsek: nipKepsek.trim(),
       });
 
       if (res.success) {
@@ -82,11 +121,30 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
               <input
                 type="text"
                 required
+                maxLength={8}
                 value={npsn}
                 onChange={(e) => setNpsn(e.target.value)}
                 placeholder="Contoh: 10203040"
-                className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                className={`w-full rounded-xl border px-3.5 py-2.5 text-xs font-mono outline-none transition ${
+                  npsnError
+                    ? "border-rose-400 bg-rose-50/20 text-rose-900 focus:border-rose-500 focus:ring-1 focus:ring-rose-400"
+                    : isNpsnValid
+                    ? "border-emerald-500 bg-emerald-50/20 text-zinc-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                    : "border-stone-200 text-zinc-900 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                }`}
               />
+              {npsnError && (
+                <p className="mt-1.5 text-[11px] font-medium text-rose-600 flex items-start gap-1">
+                  <span className="font-bold text-xs mt-[-1px]">✕</span>
+                  <span>{npsnError}</span>
+                </p>
+              )}
+              {isNpsnValid && (
+                <p className="mt-1.5 text-[11px] font-medium text-emerald-600 flex items-center gap-1">
+                  <span className="font-bold">✓</span>
+                  <span>Format NPSN valid (8 digit angka)</span>
+                </p>
+              )}
             </div>
 
             <div>
@@ -157,9 +215,32 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
                   type="text"
                   value={nipKepsek}
                   onChange={(e) => setNipKepsek(e.target.value)}
-                  placeholder="19780101 200501 1 002"
-                  className="w-full rounded-xl border border-stone-200 px-3.5 py-2.5 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  placeholder="Contoh: 19780101 200501 1 002"
+                  className={`w-full rounded-xl border px-3.5 py-2.5 text-xs font-mono outline-none transition ${
+                    nipError
+                      ? "border-rose-400 bg-rose-50/20 text-rose-900 focus:border-rose-500 focus:ring-1 focus:ring-rose-400"
+                      : isNipValid
+                      ? "border-emerald-500 bg-emerald-50/20 text-zinc-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500"
+                      : "border-stone-200 text-zinc-900 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                  }`}
                 />
+                {nipError && (
+                  <p className="mt-1.5 text-[11px] font-medium text-rose-600 flex items-start gap-1">
+                    <span className="font-bold text-xs mt-[-1px]">✕</span>
+                    <span>{nipError}</span>
+                  </p>
+                )}
+                {isNipValid && (
+                  <p className="mt-1.5 text-[11px] font-medium text-emerald-600 flex items-center gap-1">
+                    <span className="font-bold">✓</span>
+                    <span>Format NIP valid (18 digit angka)</span>
+                  </p>
+                )}
+                {!nipError && !isNipValid && (
+                  <p className="mt-1 text-[10px] text-zinc-400">
+                    Opsional untuk sekolah swasta/non-PNS. Format standar 18 digit angka.
+                  </p>
+                )}
               </div>
             </div>
           </div>

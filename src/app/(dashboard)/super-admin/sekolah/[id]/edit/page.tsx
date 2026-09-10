@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function TambahSekolahRedirect() {
+export default function EditSekolahRedirect() {
   redirect("/super-admin/sekolah");
 }

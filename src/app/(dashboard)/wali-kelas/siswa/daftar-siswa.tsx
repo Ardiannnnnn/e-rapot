@@ -78,7 +78,7 @@ export default function DaftarSiswaClient({
             <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
             <input
               type="text"
-              placeholder="Cari nama, NISN, atau NIS..."
+              placeholder="Cari nama, NISN, atau NIPD..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -164,7 +164,7 @@ export default function DaftarSiswaClient({
               <tr>
                 <th className="py-3.5 px-6">No</th>
                 <th className="py-3.5 px-6">Nama Peserta Didik</th>
-                <th className="py-3.5 px-6">NISN / NIS</th>
+                <th className="py-3.5 px-6">NISN / NIPD</th>
                 <th className="py-3.5 px-6 text-center">L/P</th>
                 <th className="py-3.5 px-6 text-center">Mapel Dinilai</th>
                 <th className="py-3.5 px-6 text-center">Rata-rata Nilai</th>
@@ -203,7 +203,7 @@ export default function DaftarSiswaClient({
                           {s.nisn}
                         </div>
                         <div className="font-mono text-[11px] text-zinc-600">
-                          NIS: {s.nis}
+                          NIPD: {s.nis}
                         </div>
                       </td>
                       <td className="py-3.5 px-6 text-center">
@@ -297,7 +297,7 @@ export default function DaftarSiswaClient({
                   {selectedSiswa.nama}
                 </h3>
                 <p className="text-xs text-zinc-600 font-mono">
-                  NISN: {selectedSiswa.nisn} | NIS: {selectedSiswa.nis}
+                  NISN: {selectedSiswa.nisn} | NIPD: {selectedSiswa.nis}
                 </p>
               </div>
               <button

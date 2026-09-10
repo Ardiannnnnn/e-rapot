@@ -3,51 +3,13 @@
 import React, { useState, useTransition, useRef, useEffect } from "react";
 import { createKelasAction, updateKelasAction, deleteKelasAction } from "@/actions/kelas";
 
-export interface KelasItem {
-  id: string;
-  nama: string;
-  tingkat: number;
-  tahunAjaran: string;
-  totalSiswa: number;
-  totalMapel: number;
-  waliKelas: {
-    id: string;
-    name: string;
-    email: string;
-  } | null;
-}
-
-export interface GuruOption {
-  id: string;
-  name: string;
-  email: string;
-  kelasWali?: {
-    id: string;
-    nama: string;
-  } | null;
-}
-
-export interface MapelOption {
-  id: string;
-  kode: string;
-  nama: string;
-  isMulok?: boolean;
-}
-
-export interface ExistingPengampuItem {
-  kelasId: string;
-  mapelId: string;
-  guruId: string;
-  semester?: number;
-}
-
-interface FormKelasProps {
-  kelasList: KelasItem[];
-  guruOptions: GuruOption[];
-  mapelOptions?: MapelOption[];
-  existingPengampuList?: ExistingPengampuItem[];
-  tahunAjaranAktif: string;
-}
+import {
+  KelasItem,
+  GuruOption,
+  MapelOption,
+  ExistingPengampuItem,
+  FormKelasProps,
+} from "@/types/admin-sekolah";
 
 function SearchableGuruSelect({
   value,
@@ -259,8 +221,9 @@ export default function FormKelas({
 
   const [selectedTingkat, setSelectedTingkat] = useState<number | "ALL">("ALL");
 
-  // Helper untuk mengecek mata pelajaran khusus (Agama / PAI / PJOK / Penjas)
-  const isSpecialMapel = (m: { nama: string; kode: string }) => {
+  // Helper untuk mengecek mata pelajaran khusus (Agama / PAI / PJOK / Penjas / B. Inggris / Mulok)
+  const isSpecialMapel = (m: { nama: string; kode: string; isMulok?: boolean }) => {
+    if (m.isMulok) return true;
     const lower = (m.nama + " " + m.kode).toLowerCase();
     return (
       lower.includes("agama") ||
@@ -272,7 +235,12 @@ export default function FormKelas({
       lower.includes("pai") ||
       lower.includes("pjok") ||
       lower.includes("penjas") ||
-      lower.includes("olahraga")
+      lower.includes("olahraga") ||
+      lower.includes("inggris") ||
+      lower.includes("english") ||
+      lower.includes("bing") ||
+      lower.includes("mulok") ||
+      lower.includes("muatan lokal")
     );
   };
 
@@ -283,6 +251,8 @@ export default function FormKelas({
   const [waliKelasId, setWaliKelasId] = useState("");
   const [isWaliKecualiPJOK, setIsWaliKecualiPJOK] = useState(false);
   const [isSemuaKeWali, setIsSemuaKeWali] = useState(false);
+  const [namaTouched, setNamaTouched] = useState(false);
+  const [namaSubmitted, setNamaSubmitted] = useState(false);
 
   // State Plotting Mapel Sekaligus
   const [selectedMapels, setSelectedMapels] = useState<
@@ -297,6 +267,26 @@ export default function FormKelas({
   const [editWaliKelasId, setEditWaliKelasId] = useState("");
   const [editIsWaliKecualiPJOK, setEditIsWaliKecualiPJOK] = useState(false);
   const [editIsSemuaKeWali, setEditIsSemuaKeWali] = useState(false);
+  const [editNamaTouched, setEditNamaTouched] = useState(false);
+  const [editNamaSubmitted, setEditNamaSubmitted] = useState(false);
+
+  // Validasi Nama Rombel
+  const getNamaRombelError = (val: string, isSubmitted: boolean, isTouched: boolean) => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      return isSubmitted || isTouched ? "Nama rombel wajib diisi (contoh: 1A, 2B, 5C)." : "";
+    }
+    if (/[<>]/.test(val)) {
+      return "Karakter tag HTML (< atau >) tidak diizinkan.";
+    }
+    if (trimmed.length < 2) {
+      return "Nama rombel minimal 2 karakter (contoh: 1A).";
+    }
+    if (trimmed.length > 20) {
+      return "Nama rombel maksimal 20 karakter.";
+    }
+    return "";
+  };
 
   const filteredKelas =
     selectedTingkat === "ALL"
@@ -306,6 +296,8 @@ export default function FormKelas({
   // Inisialisasi form Tambah Kelas
   const handleOpenAddModal = () => {
     setNama("");
+    setNamaTouched(false);
+    setNamaSubmitted(false);
     setTingkat(selectedTingkat === "ALL" ? 1 : selectedTingkat);
     setWaliKelasId("");
     setCopySourceKelasId("");
@@ -376,7 +368,7 @@ export default function FormKelas({
     }
   };
 
-  // Checkbox aksi: Wali Kelas = Guru Kelas (Kecuali PAI & PJOK)
+  // Checkbox aksi: Wali Kelas = Guru Kelas (Kecuali PAI, PJOK, B. Inggris & Mulok)
   const handleToggleWaliKecualiPJOK = (checked: boolean) => {
     if (checked && !waliKelasId) {
       setFeedbackModal({
@@ -499,7 +491,13 @@ export default function FormKelas({
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    setNamaSubmitted(true);
     setMessage(null);
+
+    const namaErr = getNamaRombelError(nama, true, true);
+    if (namaErr) {
+      return;
+    }
 
     // Validasi: jika ada mapel yang dicentang tapi belum ada guru
     const checkedWithoutGuru = Object.entries(selectedMapels).filter(
@@ -572,6 +570,8 @@ export default function FormKelas({
   const handleOpenEditModal = (k: KelasItem) => {
     setEditingKelas(k);
     setEditNama(k.nama);
+    setEditNamaTouched(false);
+    setEditNamaSubmitted(false);
     setEditTingkat(k.tingkat);
     setEditWaliKelasId(k.waliKelas?.id || "");
     setEditCopySourceKelasId("");
@@ -655,7 +655,7 @@ export default function FormKelas({
     }
   };
 
-  // Checkbox aksi: Edit Wali Kelas = Guru Kelas (Kecuali PAI & PJOK)
+  // Checkbox aksi: Edit Wali Kelas = Guru Kelas (Kecuali PAI, PJOK, B. Inggris & Mulok)
   const handleEditToggleWaliKecualiPJOK = (checked: boolean) => {
     if (checked && !editWaliKelasId) {
       setFeedbackModal({
@@ -781,7 +781,13 @@ export default function FormKelas({
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingKelas) return;
+    setEditNamaSubmitted(true);
     setMessage(null);
+
+    const editNamaErr = getNamaRombelError(editNama, true, true);
+    if (editNamaErr) {
+      return;
+    }
 
     // Validasi: jika ada mapel yang dicentang tapi belum ada guru
     const checkedWithoutGuru = Object.entries(editSelectedMapels).filter(
@@ -843,16 +849,24 @@ export default function FormKelas({
     });
   };
 
-  const handleDelete = (id: string, namaKelas: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus Rombel '${namaKelas}'?`)) return;
+  // Modal Konfirmasi Hapus Kelas (In-App Dialog menggantikan confirm browser)
+  const [confirmDeleteKelas, setConfirmDeleteKelas] = useState<{
+    id: string;
+    nama: string;
+  } | null>(null);
+
+  const handleExecuteDelete = () => {
+    if (!confirmDeleteKelas) return;
+    const { id, nama } = confirmDeleteKelas;
     setMessage(null);
 
     startTransition(async () => {
       const res = await deleteKelasAction(id);
+      setConfirmDeleteKelas(null);
       if (res.success) {
         setFeedbackModal({
           type: "success",
-          title: "Rombel Berhasil Dihapus",
+          title: "Rombel Berhasil Dihapus! 🗑️",
           message: res.message,
           actionText: "Selesai",
         });
@@ -995,9 +1009,9 @@ export default function FormKelas({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(k.id, k.nama)}
+                  onClick={() => setConfirmDeleteKelas({ id: k.id, nama: k.nama })}
                   disabled={isPending}
-                  className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition text-xs"
+                  className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition text-xs cursor-pointer active:scale-95"
                   title="Hapus rombel"
                 >
                   🗑️
@@ -1046,12 +1060,24 @@ export default function FormKelas({
                     </label>
                     <input
                       type="text"
-                      required
                       value={nama}
-                      onChange={(e) => setNama(e.target.value.toUpperCase())}
+                      onChange={(e) => {
+                        setNama(e.target.value.toUpperCase());
+                        setNamaTouched(true);
+                      }}
+                      onBlur={() => setNamaTouched(true)}
                       placeholder="Contoh: 1C"
-                      className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-mono font-bold text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-mono font-bold text-zinc-900 focus:outline-none transition ${
+                        getNamaRombelError(nama, namaSubmitted, namaTouched)
+                          ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                          : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                      }`}
                     />
+                    {getNamaRombelError(nama, namaSubmitted, namaTouched) && (
+                      <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                        {getNamaRombelError(nama, namaSubmitted, namaTouched)}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1151,7 +1177,7 @@ export default function FormKelas({
                       />
                       <span className="font-medium text-zinc-700">
                         🧑‍🏫 Wali Kelas = Guru Kelas{" "}
-                        <span className="text-zinc-400 text-[11px] font-normal">(Kecuali PAI & PJOK)</span>
+                        <span className="text-zinc-400 text-[11px] font-normal">(Kecuali PAI, PJOK, B. Inggris & Mulok)</span>
                       </span>
                     </label>
 
@@ -1360,11 +1386,23 @@ export default function FormKelas({
                     </label>
                     <input
                       type="text"
-                      required
                       value={editNama}
-                      onChange={(e) => setEditNama(e.target.value.toUpperCase())}
-                      className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-mono font-bold text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                      onChange={(e) => {
+                        setEditNama(e.target.value.toUpperCase());
+                        setEditNamaTouched(true);
+                      }}
+                      onBlur={() => setEditNamaTouched(true)}
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-xs font-mono font-bold text-zinc-900 focus:outline-none transition ${
+                        getNamaRombelError(editNama, editNamaSubmitted, editNamaTouched)
+                          ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
+                          : "border-stone-200 focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332]"
+                      }`}
                     />
+                    {getNamaRombelError(editNama, editNamaSubmitted, editNamaTouched) && (
+                      <p className="mt-1 text-[11px] text-rose-600 font-medium">
+                        {getNamaRombelError(editNama, editNamaSubmitted, editNamaTouched)}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1396,9 +1434,6 @@ export default function FormKelas({
                     currentKelasId={editingKelas.id}
                     placeholder="-- Cari & Pilih Guru Wali Kelas --"
                   />
-                  <span className="block text-[11px] text-zinc-500 mt-1">
-                    Guru yang dipilih bertindak sebagai Wali Kelas di rombel ini.
-                  </span>
                 </div>
               </div>
 
@@ -1466,8 +1501,8 @@ export default function FormKelas({
                         className="w-3.5 h-3.5 rounded text-emerald-700 focus:ring-emerald-500 cursor-pointer accent-emerald-700"
                       />
                       <span className="font-medium text-zinc-700">
-                        🧑‍🏫 Wali Kelas = Guru Kelas{" "}
-                        <span className="text-zinc-400 text-[11px] font-normal">(Kecuali PAI & PJOK)</span>
+                        Wali Kelas = Guru Kelas{" "}
+                        <span className="text-zinc-400 text-[11px] font-normal">(Kecuali PAI, PJOK, B. Inggris & Mulok)</span>
                       </span>
                     </label>
 
@@ -1632,6 +1667,55 @@ export default function FormKelas({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dialog Konfirmasi Hapus Rombel (In-App Modal) */}
+      {confirmDeleteKelas && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-stone-200 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 text-lg">
+                🗑️
+              </div>
+              <div>
+                <h3 className="font-bold text-zinc-900 text-base font-poppins">
+                  Hapus Rombel Kelas?
+                </h3>
+                <p className="text-xs text-zinc-600 mt-1 leading-relaxed">
+                  Apakah Anda yakin ingin menghapus rombel{" "}
+                  <strong className="text-zinc-900 font-bold font-mono">
+                    Kelas {confirmDeleteKelas.nama}
+                  </strong>
+                  ?
+                </p>
+                <div className="mt-2.5 p-2.5 rounded-xl bg-rose-50 text-rose-800 text-[11px] border border-rose-200 leading-relaxed">
+                  <strong>Perhatian:</strong>
+                  <br />• Penugasan mengajar guru pada rombel ini akan dibatalkan.
+                  <br />• Pastikan tidak ada data siswa aktif yang masih berada di dalam rombel ini.
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-stone-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setConfirmDeleteKelas(null)}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold border border-stone-200 hover:bg-stone-50 text-zinc-700 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={handleExecuteDelete}
+                className="px-5 py-2.5 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold shadow-md transition disabled:opacity-50 active:scale-95 cursor-pointer"
+              >
+                {isPending ? "Menghapus..." : "Ya, Hapus Rombel"}
+              </button>
+            </div>
           </div>
         </div>
       )}

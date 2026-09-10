@@ -8,58 +8,127 @@ import {
   updatePengaturanCetakAction,
   deletePeriodeAction,
 } from "@/actions/periode";
+import { CheckCircle2Icon, AlertCircleIcon } from "@/components/shared/icons";
+import { PeriodeItem, FormPeriodeProps, PeriodeFormErrors } from "@/types/admin-sekolah";
 
-export interface PeriodeItem {
-  id: string;
-  tahunAjaran: string;
-  semester: number;
-  isAktif: boolean;
-  statusNilai: string;
-  tanggalCetak: string | null;
-  tempatCetak: string | null;
-  createdAt: string;
-}
-
-interface FormPeriodeProps {
-  periodeList: PeriodeItem[];
-}
+export type { PeriodeItem };
 
 export default function FormPeriode({ periodeList }: FormPeriodeProps) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md)
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  // Modal Konfirmasi Hapus (Pengganti browser confirm)
+  const [confirmDeletePeriode, setConfirmDeletePeriode] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   // Modal Tambah Periode State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tahunAjaran, setTahunAjaran] = useState("2027/2028");
+  const [tahunAjaran, setTahunAjaran] = useState("");
   const [semester, setSemester] = useState<number>(1);
   const [tanggalCetak, setTanggalCetak] = useState("");
-  const [tempatCetak, setTempatCetak] = useState("Jakarta");
+  const [tempatCetak, setTempatCetak] = useState("");
   const [setAsAktif, setSetAsAktif] = useState(false);
+
+  // Form Validation State - Tambah
+  const [addErrors, setAddErrors] = useState<PeriodeFormErrors>({});
+  const [addTouched, setAddTouched] = useState<Record<string, boolean>>({});
 
   // Modal Edit Tanggal Cetak State
   const [editingPeriode, setEditingPeriode] = useState<PeriodeItem | null>(null);
   const [editTanggal, setEditTanggal] = useState("");
   const [editTempat, setEditTempat] = useState("");
 
+  // Form Validation State - Edit
+  const [editErrors, setEditErrors] = useState<{ editTempat?: string }>({});
+  const [editTouched, setEditTouched] = useState<Record<string, boolean>>({});
+
   const periodeAktif = periodeList.find((p) => p.isAktif) || periodeList[0];
+
+  // Helper validasi form tambah
+  const validateAddForm = (ta: string, sem: number, tempat: string) => {
+    const errs: PeriodeFormErrors = {};
+    const trimmedTa = ta.trim();
+
+    if (!trimmedTa) {
+      errs.tahunAjaran = "Tahun ajaran wajib diisi.";
+    } else if (!/^\d{4}\/\d{4}$/.test(trimmedTa)) {
+      errs.tahunAjaran = "Format tahun ajaran harus YYYY/YYYY (contoh: 2026/2027).";
+    } else {
+      const [y1, y2] = trimmedTa.split("/").map(Number);
+      if (y2 !== y1 + 1) {
+        errs.tahunAjaran = `Tahun kedua harus ${y1 + 1} (contoh: ${y1}/${y1 + 1}).`;
+      } else {
+        const isDuplicate = periodeList.some(
+          (p) => p.tahunAjaran === trimmedTa && p.semester === sem
+        );
+        if (isDuplicate) {
+          errs.tahunAjaran = `Periode ${trimmedTa} Semester ${sem === 1 ? "1 (Ganjil)" : "2 (Genap)"} sudah terdaftar.`;
+        }
+      }
+    }
+
+    if (tempat && /[<>]/.test(tempat)) {
+      errs.tempatCetak = "Kota penerbitan tidak boleh mengandung karakter < atau >.";
+    } else if (tempat && tempat.trim().length > 50) {
+      errs.tempatCetak = "Nama kota penerbitan maksimal 50 karakter.";
+    }
+
+    return errs;
+  };
+
+  // Helper validasi form edit
+  const validateEditForm = (tempat: string) => {
+    const errs: { editTempat?: string } = {};
+    if (tempat && /[<>]/.test(tempat)) {
+      errs.editTempat = "Kota penerbitan tidak boleh mengandung karakter < atau >.";
+    } else if (tempat && tempat.trim().length > 50) {
+      errs.editTempat = "Nama kota penerbitan maksimal 50 karakter.";
+    }
+    return errs;
+  };
 
   // Submit Tambah Periode Baru
   const handleCreatePeriode = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
+    const validation = validateAddForm(tahunAjaran, semester, tempatCetak);
+    setAddErrors(validation);
+    setAddTouched({ tahunAjaran: true, tempatCetak: true });
+
+    if (Object.keys(validation).length > 0) {
+      return;
+    }
+
     startTransition(async () => {
       const res = await createPeriodeAction({
-        tahunAjaran,
+        tahunAjaran: tahunAjaran.trim(),
         semester,
         tanggalCetak: tanggalCetak || undefined,
-        tempatCetak: tempatCetak || undefined,
+        tempatCetak: tempatCetak.trim() || undefined,
         isAktif: setAsAktif,
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
         setIsModalOpen(false);
+        setAlertModal({
+          isOpen: true,
+          title: "Periode Berhasil Ditambahkan",
+          message: res.message,
+        });
       } else {
         setMessage({ type: "error", text: res.message });
       }
@@ -72,7 +141,11 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
     startTransition(async () => {
       const res = await setPeriodeAktifAction(id);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Periode Aktif Dialihkan",
+          message: res.message,
+        });
       } else {
         setMessage({ type: "error", text: res.message });
       }
@@ -85,7 +158,11 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
     startTransition(async () => {
       const res = await toggleStatusNilaiAction(id);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Status Penilaian Diperbarui",
+          message: res.message,
+        });
       } else {
         setMessage({ type: "error", text: res.message });
       }
@@ -98,33 +175,49 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
     if (!editingPeriode) return;
 
     setMessage(null);
+    const validation = validateEditForm(editTempat);
+    setEditErrors(validation);
+    setEditTouched({ editTempat: true });
+
+    if (Object.keys(validation).length > 0) {
+      return;
+    }
+
     startTransition(async () => {
       const res = await updatePengaturanCetakAction({
         periodeId: editingPeriode.id,
         tanggalCetak: editTanggal,
-        tempatCetak: editTempat,
+        tempatCetak: editTempat.trim(),
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
         setEditingPeriode(null);
+        setAlertModal({
+          isOpen: true,
+          title: "Pengaturan Cetak Berhasil Disimpan",
+          message: res.message,
+        });
       } else {
         setMessage({ type: "error", text: res.message });
       }
     });
   };
 
-  // Hapus Periode
-  const handleDeletePeriode = (id: string, name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus periode ${name}? Tindakan ini tidak dapat dibatalkan.`)) {
-      return;
-    }
-
+  // Konfirmasi Eksekusi Hapus Periode
+  const handleDeletePeriodeConfirm = () => {
+    if (!confirmDeletePeriode) return;
+    const { id } = confirmDeletePeriode;
     setMessage(null);
+
     startTransition(async () => {
       const res = await deletePeriodeAction(id);
+      setConfirmDeletePeriode(null);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        setAlertModal({
+          isOpen: true,
+          title: "Periode Berhasil Dihapus",
+          message: res.message,
+        });
       } else {
         setMessage({ type: "error", text: res.message });
       }
@@ -256,7 +349,11 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
 
         <button
           type="button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setAddErrors({});
+            setAddTouched({});
+            setIsModalOpen(true);
+          }}
           className="px-4 py-2.5 rounded-xl bg-[#1b4332] text-white text-xs font-semibold hover:bg-[#143225] transition shadow-xs flex items-center gap-2"
         >
           <span>➕</span>
@@ -368,6 +465,8 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                             p.tanggalCetak ? new Date(p.tanggalCetak).toISOString().split("T")[0] : ""
                           );
                           setEditTempat(p.tempatCetak || "Jakarta");
+                          setEditErrors({});
+                          setEditTouched({});
                         }}
                         className="p-1.5 rounded-lg border border-stone-200 text-zinc-600 hover:text-zinc-900 hover:bg-stone-100 transition"
                         title="Ubah tanggal & kota cetak rapor"
@@ -379,10 +478,10 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                         <button
                           type="button"
                           onClick={() =>
-                            handleDeletePeriode(
-                              p.id,
-                              `${p.tahunAjaran} Semester ${p.semester === 1 ? "Ganjil" : "Genap"}`
-                            )
+                            setConfirmDeletePeriode({
+                              id: p.id,
+                              name: `${p.tahunAjaran} Semester ${p.semester === 1 ? "Ganjil" : "Genap"}`,
+                            })
                           }
                           disabled={isPending}
                           className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition"
@@ -420,16 +519,41 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
             <form onSubmit={handleCreatePeriode} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Tahun Ajaran (Contoh: 2026/2027, 2027/2028)
+                  Tahun Ajaran <span className="text-rose-500">*</span>{" "}
+                  <span className="text-zinc-400 font-normal">(Contoh: 2026/2027, 2027/2028)</span>
                 </label>
                 <input
                   type="text"
-                  required
                   value={tahunAjaran}
-                  onChange={(e) => setTahunAjaran(e.target.value)}
-                  placeholder="2027/2028"
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs font-mono text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTahunAjaran(val);
+                    if (addTouched.tahunAjaran) {
+                      setAddErrors((prev) => ({
+                        ...prev,
+                        ...validateAddForm(val, semester, tempatCetak),
+                        tahunAjaran: validateAddForm(val, semester, tempatCetak).tahunAjaran,
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setAddTouched((prev) => ({ ...prev, tahunAjaran: true }));
+                    setAddErrors((prev) => ({
+                      ...prev,
+                      ...validateAddForm(tahunAjaran, semester, tempatCetak),
+                    }));
+                  }}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs font-mono text-zinc-900 focus:outline-none focus:ring-1 ${
+                    addTouched.tahunAjaran && addErrors.tahunAjaran
+                      ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/20"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-[#1b4332]"
+                  }`}
                 />
+                {addTouched.tahunAjaran && addErrors.tahunAjaran && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-medium flex items-center gap-1">
+                    <span>⚠️</span> {addErrors.tahunAjaran}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -439,7 +563,15 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setSemester(1)}
+                    onClick={() => {
+                      setSemester(1);
+                      if (addTouched.tahunAjaran) {
+                        setAddErrors((prev) => ({
+                          ...prev,
+                          ...validateAddForm(tahunAjaran, 1, tempatCetak),
+                        }));
+                      }
+                    }}
                     className={`py-2 px-3 rounded-xl text-xs font-semibold border transition ${
                       semester === 1
                         ? "bg-[#1b4332] text-white border-[#1b4332]"
@@ -450,7 +582,15 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSemester(2)}
+                    onClick={() => {
+                      setSemester(2);
+                      if (addTouched.tahunAjaran) {
+                        setAddErrors((prev) => ({
+                          ...prev,
+                          ...validateAddForm(tahunAjaran, 2, tempatCetak),
+                        }));
+                      }
+                    }}
                     className={`py-2 px-3 rounded-xl text-xs font-semibold border transition ${
                       semester === 2
                         ? "bg-[#1b4332] text-white border-[#1b4332]"
@@ -481,10 +621,35 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                 <input
                   type="text"
                   value={tempatCetak}
-                  onChange={(e) => setTempatCetak(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTempatCetak(val);
+                    if (addTouched.tempatCetak) {
+                      setAddErrors((prev) => ({
+                        ...prev,
+                        ...validateAddForm(tahunAjaran, semester, val),
+                      }));
+                    }
+                  }}
+                  onBlur={() => {
+                    setAddTouched((prev) => ({ ...prev, tempatCetak: true }));
+                    setAddErrors((prev) => ({
+                      ...prev,
+                      ...validateAddForm(tahunAjaran, semester, tempatCetak),
+                    }));
+                  }}
                   placeholder="Contoh: Jakarta"
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs text-zinc-900 focus:outline-none focus:ring-1 ${
+                    addTouched.tempatCetak && addErrors.tempatCetak
+                      ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/20"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-[#1b4332]"
+                  }`}
                 />
+                {addTouched.tempatCetak && addErrors.tempatCetak && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-medium flex items-center gap-1">
+                    <span>⚠️</span> {addErrors.tempatCetak}
+                  </p>
+                )}
               </div>
 
               <div className="pt-1">
@@ -561,10 +726,29 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                 <input
                   type="text"
                   value={editTempat}
-                  onChange={(e) => setEditTempat(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditTempat(val);
+                    if (editTouched.editTempat) {
+                      setEditErrors(validateEditForm(val));
+                    }
+                  }}
+                  onBlur={() => {
+                    setEditTouched((p) => ({ ...p, editTempat: true }));
+                    setEditErrors(validateEditForm(editTempat));
+                  }}
                   placeholder="Jakarta"
-                  className="w-full rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs text-zinc-900 focus:outline-none focus:ring-1 ${
+                    editTouched.editTempat && editErrors.editTempat
+                      ? "border-rose-400 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/20"
+                      : "border-stone-200 focus:border-[#1b4332] focus:ring-[#1b4332]"
+                  }`}
                 />
+                {editTouched.editTempat && editErrors.editTempat && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-medium flex items-center gap-1">
+                    <span>⚠️</span> {editErrors.editTempat}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-stone-200">
@@ -584,6 +768,74 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Periode (Pengganti Browser Confirm Sesuai AGENTS.md) */}
+      {confirmDeletePeriode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto w-14 h-14 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center">
+              <AlertCircleIcon className="h-8 w-8 text-rose-600" />
+            </div>
+
+            <div>
+              <h3 className="font-bold text-zinc-900 text-lg font-poppins">
+                Hapus Periode Akademik?
+              </h3>
+              <p className="text-xs text-zinc-600 mt-1.5 leading-relaxed px-2">
+                Apakah Anda yakin ingin menghapus periode{" "}
+                <strong className="text-zinc-800">{confirmDeletePeriode.name}</strong>?
+                Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeletePeriode(null)}
+                className="flex-1 py-2.5 rounded-xl border border-stone-300 text-xs font-semibold text-zinc-700 hover:bg-stone-50 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePeriodeConfirm}
+                disabled={isPending}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition disabled:opacity-50 cursor-pointer"
+              >
+                {isPending ? "Menghapus..." : "Ya, Hapus"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md) */}
+      {alertModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <CheckCircle2Icon className="h-8 w-8" />
+            </div>
+
+            <div>
+              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
+              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
+                {alertModal.message}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
+                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
+              >
+                Tutup & Selesai
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -35,11 +35,8 @@ export default async function AdminDashboardPage() {
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
-            Selamat Datang, {user.name}! 🏛️
+            Selamat Datang, {user.name}! 
           </h1>
-          <p className="mt-1.5 text-sm text-emerald-100/90 max-w-xl">
-            Pusat konfigurasi data master, rombel kelas, akun tenaga pendidik, distribusi jadwal mengajar, dan kalender rapor sekolah.
-          </p>
         </div>
       </div>
 
@@ -139,7 +136,7 @@ export default async function AdminDashboardPage() {
               Data Siswa & Mutasi Rombel
             </h3>
             <p className="mt-1 text-xs text-zinc-600">
-              Pencarian NISN/NIS, tambah biodata peserta didik baru, dan mutasi perpindahan rombel kelas.
+              Pencarian NISN/NIPD, tambah biodata peserta didik baru, dan mutasi perpindahan rombel kelas.
             </p>
           </Link>
 

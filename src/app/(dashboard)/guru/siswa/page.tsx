@@ -2,17 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import FormInputNilai from "./form-input-nilai";
+import { GuruSiswaPageProps } from "@/types/guru";
 
-interface PageProps {
-  searchParams: Promise<{
-    kelasId?: string;
-    mapelId?: string;
-    semester?: string;
-    tahunAjaran?: string;
-  }>;
-}
-
-export default async function GuruSiswaDanNilaiPage({ searchParams }: PageProps) {
+export default async function GuruSiswaDanNilaiPage({ searchParams }: GuruSiswaPageProps) {
   const user = await requireUser();
   const params = await searchParams;
 

@@ -273,7 +273,7 @@ export default async function WaliKelasDashboardPage() {
               Data Siswa & Rekap Nilai
             </h3>
             <p className="mt-1 text-xs text-zinc-600">
-              Cek identitas NIS/NISN dan rekapitulasi nilai akhir masing-masing siswa sekelas.
+              Cek identitas NIPD/NISN dan rekapitulasi nilai akhir masing-masing siswa sekelas.
             </p>
           </Link>
 
