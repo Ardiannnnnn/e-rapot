@@ -1,8 +1,18 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 
-export default async function GuruDashboardPage() {
+export default function GuruDashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <GuruDashboardContent />
+    </Suspense>
+  );
+}
+
+async function GuruDashboardContent() {
   const user = await requireUser();
 
   // Ambil periode akademik yang sedang aktif di sekolah

@@ -1,9 +1,19 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormPendidik from "./form-pendidik";
 import { GuruItem, PengampuRecord } from "@/types/admin-sekolah";
 
-export default async function AdminPendidikPage() {
+export default function AdminPendidikPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AdminPendidikContent />
+    </Suspense>
+  );
+}
+
+async function AdminPendidikContent() {
   const user = await requireUser();
 
   // Ambil periode aktif untuk tahun ajaran

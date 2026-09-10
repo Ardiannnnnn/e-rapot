@@ -1,8 +1,18 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import KelolaSekolahClient from "./kelola-sekolah-client";
 
-export default async function SuperAdminSekolahPage() {
+export default function SuperAdminSekolahPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <SuperAdminSekolahContent />
+    </Suspense>
+  );
+}
+
+async function SuperAdminSekolahContent() {
   await requireUser();
 
   const sekolahList = await prisma.sekolah.findMany({

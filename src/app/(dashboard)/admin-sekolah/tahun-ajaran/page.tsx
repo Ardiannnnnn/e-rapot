@@ -1,9 +1,19 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormPeriode from "./form-periode";
 import { PeriodeItem } from "@/types/admin-sekolah";
 
-export default async function AdminTahunAjaranPage() {
+export default function AdminTahunAjaranPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AdminTahunAjaranContent />
+    </Suspense>
+  );
+}
+
+async function AdminTahunAjaranContent() {
   const user = await requireUser();
 
   // Ambil sekolahId

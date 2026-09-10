@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
@@ -12,7 +14,15 @@ interface PageProps {
   }>;
 }
 
-export default async function GuruTPPage({ searchParams }: PageProps) {
+export default function GuruTPPage({ searchParams }: PageProps) {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <GuruTPContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function GuruTPContent({ searchParams }: PageProps) {
   const user = await requireUser();
   const params = await searchParams;
 

@@ -1,9 +1,19 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import KelolaOperatorClient from "./kelola-operator-client";
 
-export default async function SuperAdminOperatorPage() {
+export default function SuperAdminOperatorPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <SuperAdminOperatorContent />
+    </Suspense>
+  );
+}
+
+async function SuperAdminOperatorContent() {
   const user = await requireUser();
 
   if (user.role !== "SUPER_ADMIN") {

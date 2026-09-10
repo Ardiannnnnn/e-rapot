@@ -1,8 +1,18 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormMapel, { MapelItem } from "./form-mapel";
 
-export default async function AdminMapelPage() {
+export default function AdminMapelPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AdminMapelContent />
+    </Suspense>
+  );
+}
+
+async function AdminMapelContent() {
   await requireUser();
 
   const mapelListRaw = await prisma.mataPelajaran.findMany({

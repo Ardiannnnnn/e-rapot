@@ -1,8 +1,18 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormProfilSekolah from "./form-profil";
 
-export default async function AdminProfilPage() {
+export default function AdminProfilPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AdminProfilContent />
+    </Suspense>
+  );
+}
+
+async function AdminProfilContent() {
   const user = await requireUser();
 
   // Cari sekolah terkait user

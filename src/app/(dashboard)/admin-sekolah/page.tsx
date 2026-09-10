@@ -1,8 +1,18 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 
-export default async function AdminDashboardPage() {
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
+async function AdminDashboardContent() {
   const user = await requireUser();
 
   const [totalSiswa, totalKelas, totalMapel, totalGuru, periodeAktif] = await Promise.all([

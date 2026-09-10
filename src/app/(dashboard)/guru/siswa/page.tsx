@@ -1,10 +1,20 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import FormInputNilai from "./form-input-nilai";
 import { GuruSiswaPageProps } from "@/types/guru";
 
-export default async function GuruSiswaDanNilaiPage({ searchParams }: GuruSiswaPageProps) {
+export default function GuruSiswaDanNilaiPage({ searchParams }: GuruSiswaPageProps) {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <GuruSiswaContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function GuruSiswaContent({ searchParams }: GuruSiswaPageProps) {
   const user = await requireUser();
   const params = await searchParams;
 

@@ -1,9 +1,19 @@
+import { Suspense } from "react";
+import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import FormSiswa from "./form-siswa";
 import { SiswaRecord } from "@/types/admin-sekolah";
 
-export default async function AdminSiswaPage() {
+export default function AdminSiswaPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <AdminSiswaContent />
+    </Suspense>
+  );
+}
+
+async function AdminSiswaContent() {
   await requireUser();
 
   // Ambil seluruh siswa dengan relasi kelas
