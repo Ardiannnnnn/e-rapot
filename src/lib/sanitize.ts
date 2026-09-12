@@ -29,6 +29,9 @@ export function sanitizeInput(str: string, maxLength = 500): string {
 
 export function isValidEmail(email: string): boolean {
   if (!email || typeof email !== "string") return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 150;
+  // Format standar: huruf, angka, titik, strip, plus, underscore; domain dengan titik dan TLD min 2 karakter
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(email) && email.length <= 150 && !/[<>]/.test(email);
 }
+
+

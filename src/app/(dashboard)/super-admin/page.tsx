@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import Link from "next/link";
 
 export default function SuperAdminDashboardPage() {
@@ -13,7 +13,7 @@ export default function SuperAdminDashboardPage() {
 }
 
 async function SuperAdminDashboardContent() {
-  const user = await requireUser();
+  const user = await requireRole(["SUPER_ADMIN"]);
 
   const [totalSekolah, totalSiswa, totalGuru, daftarSekolah] = await Promise.all([
     prisma.sekolah.count(),

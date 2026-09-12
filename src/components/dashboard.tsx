@@ -1,22 +1,8 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("session_token")?.value;
-
-  if (!sessionToken) {
-    redirect("/");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: sessionToken },
-  });
-
-  if (!user) {
-    redirect("/");
-  }
+  const user = await requireUser();
 
   const [totalSiswa, totalKelas, totalMapel] = await Promise.all([
     prisma.siswa.count(),

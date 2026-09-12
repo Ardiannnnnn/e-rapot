@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sanitizeInput } from "@/lib/sanitize";
+import { requireRole } from "@/lib/auth";
 
 export async function createSekolahAction(formData: {
   npsn: string;
@@ -12,6 +13,7 @@ export async function createSekolahAction(formData: {
   kepalaSekolah?: string;
   nipKepsek?: string;
 }) {
+  await requireRole(["SUPER_ADMIN"]);
   const { npsn, nama, alamat, kepalaSekolah, nipKepsek } = formData;
 
   const cleanNpsn = npsn?.trim() || "";
@@ -85,7 +87,12 @@ export async function updateProfilSekolahAction(payload: {
   kepalaSekolah?: string;
   nipKepsek?: string;
 }) {
+  const currentUser = await requireRole(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { sekolahId, npsn, nama, alamat, kepalaSekolah, nipKepsek } = payload;
+
+  if (currentUser.role !== "SUPER_ADMIN" && currentUser.sekolahId !== sekolahId) {
+    return { success: false, message: "Anda tidak memiliki wewenang untuk mengubah sekolah ini." };
+  }
 
   if (!sekolahId || !npsn || !nama) {
     return { success: false, message: "NPSN dan Nama Sekolah wajib diisi." };
@@ -165,6 +172,7 @@ export async function updateSekolahSuperAdminAction(payload: {
   nipKepsek: string;
   status?: string;
 }) {
+  await requireRole(["SUPER_ADMIN"]);
   const { id, npsn, nama, alamat, kepalaSekolah, nipKepsek, status } = payload;
 
   const cleanNpsn = npsn?.trim() || "";
@@ -242,6 +250,7 @@ export async function updateSekolahSuperAdminAction(payload: {
 }
 
 export async function toggleStatusSekolahAction(id: string, newIsStatus: boolean) {
+  await requireRole(["SUPER_ADMIN"]);
   if (!id) return { success: false, message: "ID sekolah tidak valid." };
 
   try {

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import KelolaSekolahClient from "./kelola-sekolah-client";
 
 export default function SuperAdminSekolahPage() {
@@ -13,7 +13,7 @@ export default function SuperAdminSekolahPage() {
 }
 
 async function SuperAdminSekolahContent() {
-  await requireUser();
+  await requireRole(["SUPER_ADMIN"]);
 
   const sekolahList = await prisma.sekolah.findMany({
     orderBy: { createdAt: "desc" },
