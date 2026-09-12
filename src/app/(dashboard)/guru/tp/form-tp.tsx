@@ -3,6 +3,8 @@
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createOrUpdateTPAction, deleteTPAction, bulkCreateTPAction } from "@/actions/tp";
+import { Trash2Icon } from "@/components/shared/icons";
+import { toast } from "@/components/shared/toast";
 
 interface TPItem {
   id: string;
@@ -66,14 +68,13 @@ export default function FormTP({
 }: FormTPProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [deleteTarget, setDeleteTarget] = useState<TPItem | null>(null);
 
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [kode, setKode] = useState(`TP ${tpList.length + 1}`);
   const [deskripsi, setDeskripsi] = useState("");
 
   const handleSelectOption = (opt: MapelTingkatOption) => {
-    setMessage(null);
     setEditingId(null);
     setDeskripsi("");
     router.push(
@@ -96,10 +97,9 @@ export default function FormTP({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     if (!kode.trim() || !deskripsi.trim()) {
-      setMessage({ type: "error", text: "Kode TP dan Deskripsi tidak boleh kosong." });
+      toast.error("Kode TP dan Deskripsi tidak boleh kosong.");
       return;
     }
 
@@ -115,27 +115,24 @@ export default function FormTP({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        toast.success(res.message);
         setEditingId(null);
         setDeskripsi("");
         setKode(`TP ${tpList.length + (editingId ? 1 : 2)}`);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus Tujuan Pembelajaran ini?")) return;
-    setMessage(null);
-
+  const executeDelete = (id: string) => {
     startTransition(async () => {
       const res = await deleteTPAction(id);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        toast.success(res.message);
         if (editingId === id) handleCancelEdit();
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -158,9 +155,9 @@ export default function FormTP({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: "Berhasil memuat rekomendasi Tujuan Pembelajaran resmi." });
+        toast.success("Berhasil memuat rekomendasi Tujuan Pembelajaran resmi.");
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -291,21 +288,6 @@ export default function FormTP({
           </div>
         </div>
       </div>
-
-      {/* Feedback Message */}
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-            }`}
-        >
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* 3. Form Input / Edit Tujuan Pembelajaran */}
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs">
@@ -470,7 +452,7 @@ export default function FormTP({
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(tp.id)}
+                          onClick={() => setDeleteTarget(tp)}
                           className="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition text-[11px] font-medium"
                         >
                           Hapus
@@ -484,6 +466,52 @@ export default function FormTP({
           </div>
         )}
       </div>
+
+      {/* Modal Konfirmasi Hapus TP (In-App Modal) */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                <Trash2Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 font-poppins">
+                  Hapus Tujuan Pembelajaran?
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-zinc-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus <strong className="text-zinc-900 font-semibold">{deleteTarget.kode}</strong>: &quot;{deleteTarget.deskripsi}&quot;?
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-stone-50 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  const target = deleteTarget;
+                  setDeleteTarget(null);
+                  executeDelete(target.id);
+                }}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition disabled:opacity-50"
+              >
+                {isPending ? "Menghapus..." : "Ya, Hapus TP"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

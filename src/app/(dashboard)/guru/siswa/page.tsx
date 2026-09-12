@@ -156,6 +156,7 @@ async function GuruSiswaContent({ searchParams }: GuruSiswaPageProps) {
 
       {/* Form Interaktif Input Nilai */}
       <FormInputNilai
+        key={`${activePengampu.kelasId}-${activePengampu.mapelId}-${selectedTahunAjaran}-${selectedSemester}`}
         daftarPengampu={daftarPengampu}
         activePengampu={activePengampu}
         siswaList={siswaList}

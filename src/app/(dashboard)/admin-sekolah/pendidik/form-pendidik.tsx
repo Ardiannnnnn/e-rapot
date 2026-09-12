@@ -18,7 +18,8 @@ import {
   FormPendidikProps,
 } from "@/types/admin-sekolah";
 import { TablePagination } from "@/components/shared/table-pagination";
-import { CheckCircle2Icon } from "@/components/shared/icons";
+import { CheckCircle2Icon, AlertCircleIcon } from "@/components/shared/icons";
+import { toast } from "@/components/shared/toast";
 
 export default function FormPendidik({
   guruList,
@@ -29,7 +30,6 @@ export default function FormPendidik({
 }: FormPendidikProps) {
   const [activeTab, setActiveTab] = useState<"GURU" | "PENGAMPU">("PENGAMPU");
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Filter Tab Pengampu
   const [searchPengampu, setSearchPengampu] = useState("");
@@ -68,17 +68,21 @@ export default function FormPendidik({
   });
   const [editGuruFormError, setEditGuruFormError] = useState("");
 
-  // Alert Dialog Modal (Popup Berhasil Simpan / Edit / Hapus)
-  const [alertModal, setAlertModal] = useState<{
+  // Confirm Dialog Modal (In-App Confirmation menggantikan confirm browser)
+  const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
     message: string;
-    type: "success" | "info";
+    confirmLabel: string;
+    confirmColor?: "rose" | "emerald";
+    onConfirm: () => void;
   }>({
     isOpen: false,
     title: "",
     message: "",
-    type: "success",
+    confirmLabel: "Ya, Lanjutkan",
+    confirmColor: "rose",
+    onConfirm: () => {},
   });
 
   // Modal Tambah Penugasan Mengajar
@@ -211,7 +215,6 @@ export default function FormPendidik({
   const handleCreateGuru = (e: React.FormEvent) => {
     e.preventDefault();
     setGuruSubmitted(true);
-    setMessage(null);
 
     const nameErr = getGuruNameError(guruName);
     const emailErr = getGuruEmailError(guruEmail);
@@ -232,12 +235,7 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Akun Guru Berhasil Dibuat! 🎉",
-          message: res.message,
-          type: "success",
-        });
+        toast.success(res.message);
         setGuruName("");
         setGuruEmail("");
         setGuruPassword("password123");
@@ -250,7 +248,6 @@ export default function FormPendidik({
 
   const handleAssignPengampu = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     startTransition(async () => {
       const res = await assignPengampuAction({
@@ -262,15 +259,10 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Penugasan Mengajar Berhasil Disimpan! 🎉",
-          message: res.message,
-          type: "success",
-        });
+        toast.success(res.message);
         setIsAssignOpen(false);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -330,7 +322,6 @@ export default function FormPendidik({
     e.preventDefault();
     if (!editingGuru) return;
     setEditGuruSubmitted(true);
-    setMessage(null);
 
     const nameErr = getEditGuruNameError(editGuruName);
     const emailErr = getEditGuruEmailError(editGuruEmail);
@@ -354,12 +345,7 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Data Guru Berhasil Diperbarui! 🎉",
-          message: res.message,
-          type: "success",
-        });
+        toast.success(res.message);
         setIsEditGuruOpen(false);
       } else {
         setEditGuruFormError(res.message);
@@ -370,28 +356,24 @@ export default function FormPendidik({
   const handleToggleGuruStatus = (guruId: string, currentStatus: boolean, name: string) => {
     const actionText = currentStatus
       ? `Nonaktifkan akun guru '${name}'? Guru tidak akan dapat login dan penugasan wali kelasnya (jika ada) akan otomatis dibebaskan agar bisa digantikan oleh guru baru.`
-      : `Aktifkan kembali akun guru '${name}'?`;
+      : `Aktifkan kembali akun guru '${name}'? Guru akan dapat kembali mengakses akun dan fitur penilaian.`;
 
-    if (!confirm(actionText)) return;
-    setMessage(null);
-
-    startTransition(async () => {
-      const res = await toggleGuruStatusAction(guruId);
-      if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: currentStatus ? "Akun Guru Dinonaktifkan! ⚪" : "Akun Guru Diaktifkan! 🟢",
-          message: res.message,
-          type: "success",
+    setConfirmModal({
+      isOpen: true,
+      title: currentStatus ? "Nonaktifkan Akun Guru?" : "Aktifkan Akun Guru?",
+      message: actionText,
+      confirmLabel: currentStatus ? "Ya, Nonaktifkan" : "Ya, Aktifkan",
+      confirmColor: currentStatus ? "rose" : "emerald",
+      onConfirm: () => {
+        startTransition(async () => {
+          const res = await toggleGuruStatusAction(guruId);
+          if (res.success) {
+            toast.success(res.message);
+          } else {
+            toast.error(res.message);
+          }
         });
-      } else {
-        setAlertModal({
-          isOpen: true,
-          title: "Gagal Mengubah Status",
-          message: res.message,
-          type: "info",
-        });
-      }
+      },
     });
   };
 
@@ -407,7 +389,6 @@ export default function FormPendidik({
   const handleUpdatePengampu = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPengampu) return;
-    setMessage(null);
 
     startTransition(async () => {
       const res = await updatePengampuAction({
@@ -419,59 +400,51 @@ export default function FormPendidik({
       });
 
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Penugasan Mengajar Berhasil Diperbarui! 🎉",
-          message: res.message,
-          type: "success",
-        });
+        toast.success(res.message);
         setIsEditPengampuOpen(false);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
 
   const handleDeletePengampu = (id: string, guru: string, mapel: string, kelas: string) => {
-    if (!confirm(`Cabut penugasan mengajar ${mapel} di Kelas ${kelas} dari ${guru}?`)) return;
-    setMessage(null);
-
-    startTransition(async () => {
-      const res = await deletePengampuAction(id);
-      if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Penugasan Berhasil Dicabut!",
-          message: res.message,
-          type: "info",
+    setConfirmModal({
+      isOpen: true,
+      title: "Cabut Penugasan Mengajar?",
+      message: `Apakah Anda yakin ingin mencabut penugasan mengajar ${mapel} di Kelas ${kelas} dari guru ${guru}?`,
+      confirmLabel: "Ya, Cabut Penugasan",
+      confirmColor: "rose",
+      onConfirm: () => {
+        startTransition(async () => {
+          const res = await deletePengampuAction(id);
+          if (res.success) {
+            toast.success(res.message);
+          } else {
+            toast.error(res.message);
+          }
         });
-      } else {
-        setMessage({ type: "error", text: res.message });
-      }
+      },
     });
   };
 
   const handleDeleteGuru = (id: string, name: string) => {
-    if (!confirm(`Hapus akun guru '${name}'? Tindakan ini tidak dapat dibatalkan.`)) return;
-    setMessage(null);
-
-    startTransition(async () => {
-      const res = await deleteGuruAction(id);
-      if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Akun Guru Berhasil Dihapus!",
-          message: res.message,
-          type: "info",
+    setConfirmModal({
+      isOpen: true,
+      title: "Hapus Akun Guru?",
+      message: `Hapus akun guru '${name}'? Seluruh riwayat penugasan terkait akan terhapus dan tindakan ini tidak dapat dibatalkan.`,
+      confirmLabel: "Ya, Hapus Akun",
+      confirmColor: "rose",
+      onConfirm: () => {
+        startTransition(async () => {
+          const res = await deleteGuruAction(id);
+          if (res.success) {
+            toast.success(res.message);
+          } else {
+            toast.error(res.message);
+          }
         });
-      } else {
-        setAlertModal({
-          isOpen: true,
-          title: "Gagal Menghapus Akun",
-          message: res.message,
-          type: "info",
-        });
-      }
+      },
     });
   };
 
@@ -506,21 +479,6 @@ export default function FormPendidik({
         </button>
       </div>
 
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-          }`}
-        >
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-            ✕
-          </button>
-        </div>
-      )}
-
       {/* TAB 1: DISTRIBUSI PENUGASAN MENGAJAR (PENGAMPU) */}
       {activeTab === "PENGAMPU" && (
         <div className="space-y-4">
@@ -528,32 +486,27 @@ export default function FormPendidik({
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
               {/* Input Pencarian */}
-              <div className="w-full sm:w-60">
+              <div className="relative w-full sm:w-64">
                 <input
                   type="text"
-                  placeholder="Cari mapel, guru, rombel..."
+                  placeholder="Cari guru, mapel, rombel..."
                   value={searchPengampu}
-                  onChange={(e) => {
-                    setSearchPengampu(e.target.value);
-                    setCurrentPagePengampu(1);
-                  }}
-                  className="w-full rounded-xl border border-stone-200 px-3.5 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                  onChange={(e) => setSearchPengampu(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-stone-200 bg-white text-xs text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-[#1b4332] focus:ring-1 focus:ring-[#1b4332] shadow-2xs"
                 />
+                <span className="absolute left-3 top-3 text-zinc-400 text-xs">🔍</span>
               </div>
 
-              {/* Filter Kelas */}
+              {/* Filter Rombel */}
               <select
                 value={filterKelas}
-                onChange={(e) => {
-                  setFilterKelas(e.target.value);
-                  setCurrentPagePengampu(1);
-                }}
-                className="rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                onChange={(e) => setFilterKelas(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-xs text-zinc-700 focus:outline-none focus:border-[#1b4332] shadow-2xs cursor-pointer"
               >
-                <option value="ALL">Semua Kelas ({kelasList.length})</option>
+                <option value="ALL">Semua Kelas</option>
                 {kelasList.map((k) => (
                   <option key={k.id} value={k.id}>
-                    Kelas {k.nama}
+                    Kelas {k.nama} (Tingkat {k.tingkat})
                   </option>
                 ))}
               </select>
@@ -561,26 +514,22 @@ export default function FormPendidik({
               {/* Filter Semester */}
               <select
                 value={filterSemester}
-                onChange={(e) => {
-                  setFilterSemester(e.target.value === "ALL" ? "ALL" : Number(e.target.value));
-                  setCurrentPagePengampu(1);
-                }}
-                className="rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
+                onChange={(e) =>
+                  setFilterSemester(e.target.value === "ALL" ? "ALL" : Number(e.target.value))
+                }
+                className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-xs text-zinc-700 focus:outline-none focus:border-[#1b4332] shadow-2xs cursor-pointer"
               >
                 <option value="ALL">Semua Semester</option>
-                <option value={1}>Semester 1 (Ganjil)</option>
-                <option value={2}>Semester 2 (Genap)</option>
-                <option value={0}>Khusus Berlaku Kedua Semester</option>
+                <option value={0}>Semester 1 & 2 (Setahun)</option>
+                <option value={1}>Hanya Semester Ganjil (1)</option>
+                <option value={2}>Hanya Semester Genap (2)</option>
               </select>
 
               {/* Filter Guru */}
               <select
                 value={filterGuru}
-                onChange={(e) => {
-                  setFilterGuru(e.target.value);
-                  setCurrentPagePengampu(1);
-                }}
-                className="rounded-xl border border-stone-200 px-3 py-2 text-xs text-zinc-900 focus:border-[#1b4332] focus:outline-none focus:ring-1 focus:ring-[#1b4332] max-w-xs"
+                onChange={(e) => setFilterGuru(e.target.value)}
+                className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-stone-200 bg-white text-xs text-zinc-700 focus:outline-none focus:border-[#1b4332] shadow-2xs cursor-pointer max-w-xs truncate"
               >
                 <option value="ALL">Semua Guru Pengampu</option>
                 {guruList.map((g) => (
@@ -595,7 +544,7 @@ export default function FormPendidik({
               type="button"
               onClick={() => {
                 if (guruList.length === 0 || kelasList.length === 0 || mapelList.length === 0) {
-                  alert("Pastikan data guru, kelas, dan mapel sudah terdaftar sebelum melakukan penugasan.");
+                  toast.warning("Pastikan data guru, kelas, dan mapel sudah terdaftar sebelum melakukan penugasan.");
                   return;
                 }
                 setAssignGuruId(guruList[0]?.id || "");
@@ -1499,28 +1448,56 @@ export default function FormPendidik({
         </div>
       )}
 
-      {/* Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md) */}
-      {alertModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2Icon className="h-8 w-8" />
+      {/* Confirmation Modal (In-App Dialog menggantikan confirm browser) */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                  confirmModal.confirmColor === "emerald"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-rose-100 text-rose-600"
+                }`}
+              >
+                <AlertCircleIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 font-poppins">
+                  {confirmModal.title}
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Konfirmasi Tindakan
+                </p>
+              </div>
             </div>
-
-            <div>
-              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
-              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
-                {alertModal.message}
-              </p>
-            </div>
-
-            <div className="pt-2">
+            <p className="mt-4 text-xs text-zinc-600 leading-relaxed">
+              {confirmModal.message}
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
-                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
+                disabled={isPending}
+                onClick={() => setConfirmModal((p) => ({ ...p, isOpen: false }))}
+                className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-stone-50 transition"
               >
-                Tutup & Selesai
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  const onConfirm = confirmModal.onConfirm;
+                  setConfirmModal((p) => ({ ...p, isOpen: false }));
+                  onConfirm();
+                }}
+                className={`rounded-xl px-4 py-2 text-xs font-semibold text-white transition disabled:opacity-50 ${
+                  confirmModal.confirmColor === "emerald"
+                    ? "bg-emerald-700 hover:bg-emerald-800"
+                    : "bg-rose-600 hover:bg-rose-700"
+                }`}
+              >
+                {isPending ? "Memproses..." : confirmModal.confirmLabel}
               </button>
             </div>
           </div>

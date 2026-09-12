@@ -107,10 +107,12 @@ async function PelengkapContent() {
       kebiasaanKarakter: p?.kebiasaanKarakter ?? "",
       statusKenaikan: p?.statusKenaikan ?? "",
       isPresensiSaved: !!p,
-      isEkskulSaved: !!(p && p.ekskul && ekskulParsed.length > 0),
+      isEkskulSaved: !!(p && p.ekskul !== null),
       isKokurikulerSaved: !!(p && p.kokurikuler && kokurikulerParsed.length > 0),
       isKebiasaanSaved: !!(p && p.kebiasaanKarakter && p.kebiasaanKarakter.trim().length > 0),
-      isKenaikanSaved: !!(p && p.statusKenaikan && p.statusKenaikan.trim().length > 0),
+      isKenaikanSaved: semester === 2
+        ? !!(p && p.statusKenaikan && p.statusKenaikan.trim().length > 0)
+        : true,
     };
   });
 

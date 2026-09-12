@@ -14,6 +14,7 @@ import {
 } from "@/components/shared/icons";
 import { importNilaiExcelAction, ItemNilaiImport } from "@/actions/wali-kelas-import";
 import Link from "next/link";
+import { toast } from "@/components/shared/toast";
 import {
   MapelImportItem as MapelItem,
   SiswaImportItem as SiswaItem,
@@ -91,10 +92,14 @@ export default function FormImportNilaiClient({
   const [fileName, setFileName] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const setMessage = (msg: { type: "success" | "error"; text: string } | null) => {
+    if (!msg) return;
+    if (msg.type === "success") {
+      toast.success(msg.text);
+    } else {
+      toast.error(msg.text);
+    }
+  };
   const [warningModal, setWarningModal] = useState<{
     title: string;
     text: string;
@@ -638,35 +643,6 @@ export default function FormImportNilaiClient({
           })}
         </div>
       </div>
-
-      {/* Alert Notifikasi Biasa (Success / Error) */}
-      {message && (
-        <div
-          className={`p-4 rounded-xl flex items-center justify-between gap-3 text-sm font-medium ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
-              : "bg-rose-50 text-rose-900 border border-rose-200"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            {message.type === "success" ? (
-              <CheckCircle2Icon className="h-5 w-5 text-emerald-700 shrink-0" />
-            ) : (
-              <AlertCircleIcon className="h-5 w-5 text-rose-700 shrink-0" />
-            )}
-            <span>{message.text}</span>
-          </div>
-          {message.type === "success" && (
-            <Link
-              href="/wali-kelas/cetak"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-800 text-white text-xs font-semibold hover:bg-emerald-900 transition-colors shrink-0"
-            >
-              <PrinterIcon className="h-3.5 w-3.5" />
-              Lihat di Lembar Rapor
-            </Link>
-          )}
-        </div>
-      )}
 
       {/* MODAL BOX DIALOG PERINGATAN / VALIDASI FORMAT PENILAIAN */}
       {warningModal && (

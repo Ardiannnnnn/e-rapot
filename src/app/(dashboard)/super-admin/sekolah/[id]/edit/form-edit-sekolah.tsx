@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateSekolahSuperAdminAction } from "@/actions/sekolah";
+import { toast } from "@/components/shared/toast";
 
 interface SekolahData {
   id: string;
@@ -32,7 +33,6 @@ export default function FormEditSekolah({ initialData }: { initialData: SekolahD
     nipKepsek: false,
   });
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   // 1. Validasi NPSN
@@ -133,7 +133,6 @@ export default function FormEditSekolah({ initialData }: { initialData: SekolahD
       nipKepsek: true,
     });
     setError("");
-    setSuccess("");
 
     if (hasAnyError) {
       setError("Semua kolom form wajib diisi dengan benar. Silakan periksa input yang bertanda merah.");
@@ -154,15 +153,15 @@ export default function FormEditSekolah({ initialData }: { initialData: SekolahD
       });
 
       if (res.success) {
-        setSuccess("Perubahan data sekolah berhasil disimpan.");
-        setTimeout(() => {
-          router.push("/super-admin/sekolah");
-        }, 1200);
+        toast.success("Perubahan data sekolah berhasil disimpan.");
+        router.push("/super-admin/sekolah");
       } else {
+        toast.error(res.message || "Gagal memperbarui data sekolah.");
         setError(res.message || "Gagal memperbarui data sekolah.");
         setLoading(false);
       }
     } catch {
+      toast.error("Terjadi kesalahan jaringan.");
       setError("Terjadi kesalahan jaringan.");
       setLoading(false);
     }
@@ -191,13 +190,6 @@ export default function FormEditSekolah({ initialData }: { initialData: SekolahD
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 font-medium">
               {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 font-medium flex items-center gap-2">
-              <span>✓</span>
-              <span>{success} Mengalihkan kembali ke daftar sekolah...</span>
             </div>
           )}
 

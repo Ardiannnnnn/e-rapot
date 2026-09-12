@@ -8,6 +8,7 @@ import {
   toggleStatusOperatorAction,
 } from "@/actions/operator";
 import { CheckCircle2Icon, AlertCircleIcon, SaveIcon } from "@/components/shared/icons";
+import { toast } from "@/components/shared/toast";
 
 export interface OperatorItem {
   id: string;
@@ -25,43 +26,22 @@ export interface OperatorItem {
   } | null;
 }
 
-export interface SekolahOption {
-  id: string;
-  nama: string;
-  npsn: string;
-}
-
-interface KelolaOperatorClientProps {
-  initialOperatorList: OperatorItem[];
-  sekolahOptions: SekolahOption[];
-}
-
 export default function KelolaOperatorClient({
   initialOperatorList,
   sekolahOptions,
-}: KelolaOperatorClientProps) {
+}: {
+  initialOperatorList: OperatorItem[];
+  sekolahOptions: { id: string; nama: string; npsn: string }[];
+}) {
   const [isPending, startTransition] = useTransition();
 
-  // Modal State
+  // Modal State (Tambah / Edit)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingOperator, setEditingOperator] = useState<OperatorItem | null>(null);
   const [confirmToggleOperator, setConfirmToggleOperator] = useState<{
     operator: OperatorItem;
     targetIsActive: boolean;
   } | null>(null);
-
-  // Alert Modal (Popup Sukses)
-  const [alertModal, setAlertModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type: "success" | "info";
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    type: "success",
-  });
 
   // State Form Input
   const [sekolahId, setSekolahId] = useState("");
@@ -211,12 +191,7 @@ export default function KelolaOperatorClient({
             setFormError(res.message);
           } else {
             handleCloseFormModal();
-            setAlertModal({
-              isOpen: true,
-              title: "Operator Berhasil Diperbarui! 🎉",
-              message: res.message,
-              type: "success",
-            });
+            toast.success(res.message);
           }
         } else {
           // Mode Tambah Baru
@@ -231,12 +206,7 @@ export default function KelolaOperatorClient({
             setFormError(res.message);
           } else {
             handleCloseFormModal();
-            setAlertModal({
-              isOpen: true,
-              title: "Operator Berhasil Didaftarkan! 🎉",
-              message: `${res.message} Akun ini siap digunakan untuk login sebagai Administrator Sekolah.`,
-              type: "success",
-            });
+            toast.success(`${res.message} Akun siap digunakan untuk login.`);
           }
         }
       } catch (err: any) {
@@ -260,28 +230,13 @@ export default function KelolaOperatorClient({
         setConfirmToggleOperator(null);
 
         if (!res.success) {
-          setAlertModal({
-            isOpen: true,
-            title: "Gagal Mengubah Status",
-            message: res.message,
-            type: "info",
-          });
+          toast.error(res.message);
         } else {
-          setAlertModal({
-            isOpen: true,
-            title: targetIsActive ? "Akun Diaktifkan! 🟢" : "Akun Dinonaktifkan! ⚪",
-            message: res.message,
-            type: "success",
-          });
+          toast.success(res.message);
         }
       } catch (err: any) {
         setConfirmToggleOperator(null);
-        setAlertModal({
-          isOpen: true,
-          title: "Terjadi Kesalahan",
-          message: err?.message || "Gagal mengubah status akun operator.",
-          type: "info",
-        });
+        toast.error(err?.message || "Gagal mengubah status akun operator.");
       }
     });
   };
@@ -1012,36 +967,6 @@ export default function KelolaOperatorClient({
                   : confirmToggleOperator.targetIsActive
                   ? "Ya, Aktifkan Akun"
                   : "Ya, Nonaktifkan Akun"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* 3. MODAL ALERT SUKSES POP-UP NOTIFIKASI                   */}
-      {/* ========================================================= */}
-      {alertModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2Icon className="h-8 w-8" />
-            </div>
-
-            <div>
-              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
-              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
-                {alertModal.message}
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
-                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
-              >
-                Tutup & Selesai
               </button>
             </div>
           </div>

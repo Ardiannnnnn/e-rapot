@@ -131,7 +131,7 @@ export function TabKokurikuler({
                   {idx + 1}
                 </td>
                 <td className="py-3 px-4">
-                  <p className="font-bold text-zinc-900">{s.nama}</p>
+                  <p className="font-semibold text-zinc-900">{s.nama}</p>
                 </td>
                 <td className="py-3 px-4 text-center font-mono text-xs text-zinc-600">
                   {s.nisn || "-"}

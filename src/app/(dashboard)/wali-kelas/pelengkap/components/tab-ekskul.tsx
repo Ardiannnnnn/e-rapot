@@ -142,7 +142,7 @@ export function TabEkskul({
           >
             <div className="flex items-center justify-between pb-2 border-b border-stone-100">
               <div>
-                <h4 className="font-bold text-zinc-900 text-xs">
+                <h4 className="font-semibold text-zinc-900 text-xs">
                   {idx + 1}. {s.nama}
                 </h4>
                 <p className="text-[10px] text-zinc-400 font-mono">NISN: {s.nisn}</p>

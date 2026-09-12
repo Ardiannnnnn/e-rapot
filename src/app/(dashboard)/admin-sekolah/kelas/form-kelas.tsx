@@ -10,6 +10,7 @@ import {
   ExistingPengampuItem,
   FormKelasProps,
 } from "@/types/admin-sekolah";
+import { toast } from "@/components/shared/toast";
 
 function SearchableGuruSelect({
   value,
@@ -209,7 +210,6 @@ export default function FormKelas({
   tahunAjaranAktif,
 }: FormKelasProps) {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{
     type: "success" | "warning" | "error";
     title: string;
@@ -492,7 +492,6 @@ export default function FormKelas({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     setNamaSubmitted(true);
-    setMessage(null);
 
     const namaErr = getNamaRombelError(nama, true, true);
     if (namaErr) {
@@ -543,20 +542,9 @@ export default function FormKelas({
         setNama("");
         setWaliKelasId("");
         setIsAddOpen(false);
-        setFeedbackModal({
-          type: "success",
-          title: "Berhasil Menambahkan Rombel!",
-          message: res.message,
-          actionText: "Selesai",
-        });
+        toast.success(res.message);
       } else {
-        setFeedbackModal({
-          type: "error",
-          title: "Gagal Menambahkan Rombel",
-          message: res.message,
-          solution: "Silakan periksa kembali formulir atau pastikan nama rombel belum terdaftar.",
-          actionText: "Periksa Kembali",
-        });
+        toast.error(res.message);
       }
     });
   };
@@ -782,7 +770,6 @@ export default function FormKelas({
     e.preventDefault();
     if (!editingKelas) return;
     setEditNamaSubmitted(true);
-    setMessage(null);
 
     const editNamaErr = getNamaRombelError(editNama, true, true);
     if (editNamaErr) {
@@ -831,20 +818,9 @@ export default function FormKelas({
 
       if (res.success) {
         setEditingKelas(null);
-        setFeedbackModal({
-          type: "success",
-          title: "Perubahan Berhasil Disimpan!",
-          message: res.message,
-          actionText: "Selesai",
-        });
+        toast.success(res.message);
       } else {
-        setFeedbackModal({
-          type: "error",
-          title: "Gagal Menyimpan Perubahan",
-          message: res.message,
-          solution: "Silakan periksa kembali konfigurasi rombel dan pengampu mata pelajaran.",
-          actionText: "Periksa Kembali",
-        });
+        toast.error(res.message);
       }
     });
   };
@@ -858,26 +834,14 @@ export default function FormKelas({
   const handleExecuteDelete = () => {
     if (!confirmDeleteKelas) return;
     const { id, nama } = confirmDeleteKelas;
-    setMessage(null);
 
     startTransition(async () => {
       const res = await deleteKelasAction(id);
       setConfirmDeleteKelas(null);
       if (res.success) {
-        setFeedbackModal({
-          type: "success",
-          title: "Rombel Berhasil Dihapus! 🗑️",
-          message: res.message,
-          actionText: "Selesai",
-        });
+        toast.success(res.message);
       } else {
-        setFeedbackModal({
-          type: "error",
-          title: "Gagal Menghapus Rombel",
-          message: res.message,
-          solution: "Pastikan data siswa atau nilai yang terhubung sudah disesuaikan terlebih dahulu.",
-          actionText: "Tutup",
-        });
+        toast.error(res.message);
       }
     });
   };
@@ -927,21 +891,6 @@ export default function FormKelas({
           <span>Tambah Rombel Kelas</span>
         </button>
       </div>
-
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-          }`}
-        >
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Grid Kartu Rombel Kelas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

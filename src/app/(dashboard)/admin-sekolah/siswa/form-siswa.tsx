@@ -23,23 +23,12 @@ import {
 } from "@/components/shared/icons";
 
 import { SiswaRecord, FormSiswaProps } from "@/types/admin-sekolah";
+import { toast } from "@/components/shared/toast";
 
 export type { SiswaRecord };
 
 export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProps) {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md)
-  const [alertModal, setAlertModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-  });
 
   // Modal Konfirmasi Hapus Siswa (Pengganti browser confirm)
   const [confirmDeleteSiswa, setConfirmDeleteSiswa] = useState<{
@@ -376,17 +365,10 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
       setImportFileName("");
       if (importFileInputRef.current) importFileInputRef.current.value = "";
 
-      setAlertModal({
-        isOpen: true,
-        title: "Import Siswa Berhasil",
-        message: res.message,
-      });
+      toast.success(res.message);
 
       if (res.errors && res.errors.length > 0) {
-        setMessage({
-          type: "error",
-          text: `Beberapa data siswa tidak tersimpan: ${res.errors.slice(0, 3).join("; ")}`,
-        });
+        toast.error(`Beberapa data siswa tidak tersimpan: ${res.errors.slice(0, 3).join("; ")}`);
       }
     } else {
       setImportErrors(res.errors || [res.message]);
@@ -395,7 +377,6 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     startTransition(async () => {
       const res = await createSiswaAction({
@@ -421,13 +402,9 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
         setAgama("Islam");
         setAlamat("");
         setIsAddOpen(false);
-        setAlertModal({
-          isOpen: true,
-          title: "Peserta Didik Berhasil Ditambahkan",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -435,7 +412,6 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSiswa) return;
-    setMessage(null);
 
     startTransition(async () => {
       const res = await updateSiswaAction({
@@ -454,13 +430,9 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
 
       if (res.success) {
         setEditingSiswa(null);
-        setAlertModal({
-          isOpen: true,
-          title: "Data Peserta Didik Berhasil Diperbarui",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -468,19 +440,14 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
   const handleDeleteConfirm = () => {
     if (!confirmDeleteSiswa) return;
     const { id } = confirmDeleteSiswa;
-    setMessage(null);
 
     startTransition(async () => {
       const res = await deleteSiswaAction(id);
       setConfirmDeleteSiswa(null);
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Peserta Didik Berhasil Dihapus",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -555,7 +522,7 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
             type="button"
             onClick={() => {
               if (kelasList.length === 0) {
-                alert("Buat data rombel kelas terlebih dahulu sebelum mendaftarkan siswa.");
+                toast.error("Buat data rombel kelas terlebih dahulu di menu Master Kelas sebelum mendaftarkan siswa baru.");
                 return;
               }
               setKelasId(kelasList[0].id);
@@ -572,21 +539,6 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
           </button>
         </div>
       </div>
-
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-          }`}
-        >
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Bar Kontrol Pagination & Status Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
@@ -1428,34 +1380,6 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition disabled:opacity-50 cursor-pointer"
               >
                 {isPending ? "Menghapus..." : "Ya, Hapus"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md) */}
-      {alertModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2Icon className="h-8 w-8" />
-            </div>
-
-            <div>
-              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
-              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
-                {alertModal.message}
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
-                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
-              >
-                Tutup & Selesai
               </button>
             </div>
           </div>

@@ -8,25 +8,14 @@ import {
   updatePengaturanCetakAction,
   deletePeriodeAction,
 } from "@/actions/periode";
-import { CheckCircle2Icon, AlertCircleIcon } from "@/components/shared/icons";
+import { AlertCircleIcon } from "@/components/shared/icons";
 import { PeriodeItem, FormPeriodeProps, PeriodeFormErrors } from "@/types/admin-sekolah";
+import { toast } from "@/components/shared/toast";
 
 export type { PeriodeItem };
 
 export default function FormPeriode({ periodeList }: FormPeriodeProps) {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md)
-  const [alertModal, setAlertModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-  });
 
   // Modal Konfirmasi Hapus (Pengganti browser confirm)
   const [confirmDeletePeriode, setConfirmDeletePeriode] = useState<{
@@ -103,7 +92,6 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
   // Submit Tambah Periode Baru
   const handleCreatePeriode = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     const validation = validateAddForm(tahunAjaran, semester, tempatCetak);
     setAddErrors(validation);
@@ -124,47 +112,33 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
 
       if (res.success) {
         setIsModalOpen(false);
-        setAlertModal({
-          isOpen: true,
-          title: "Periode Berhasil Ditambahkan",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
 
   // Set Periode Aktif
   const handleSetAktif = (id: string) => {
-    setMessage(null);
     startTransition(async () => {
       const res = await setPeriodeAktifAction(id);
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Periode Aktif Dialihkan",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
 
   // Toggle Buka/Kunci Nilai
   const handleToggleLock = (id: string) => {
-    setMessage(null);
     startTransition(async () => {
       const res = await toggleStatusNilaiAction(id);
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Status Penilaian Diperbarui",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -174,7 +148,6 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
     e.preventDefault();
     if (!editingPeriode) return;
 
-    setMessage(null);
     const validation = validateEditForm(editTempat);
     setEditErrors(validation);
     setEditTouched({ editTempat: true });
@@ -192,13 +165,9 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
 
       if (res.success) {
         setEditingPeriode(null);
-        setAlertModal({
-          isOpen: true,
-          title: "Pengaturan Cetak Berhasil Disimpan",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -207,19 +176,14 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
   const handleDeletePeriodeConfirm = () => {
     if (!confirmDeletePeriode) return;
     const { id } = confirmDeletePeriode;
-    setMessage(null);
 
     startTransition(async () => {
       const res = await deletePeriodeAction(id);
       setConfirmDeletePeriode(null);
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: "Periode Berhasil Dihapus",
-          message: res.message,
-        });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -317,22 +281,6 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
               <span>Edit Tanggal Cetak</span>
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Feedback Message */}
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-          }`}
-        >
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-            ✕
-          </button>
         </div>
       )}
 
@@ -806,34 +754,6 @@ export default function FormPeriode({ periodeList }: FormPeriodeProps) {
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md transition disabled:opacity-50 cursor-pointer"
               >
                 {isPending ? "Menghapus..." : "Ya, Hapus"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Alert Modal Pop-up Berhasil (Sesuai Aturan AGENTS.md) */}
-      {alertModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2Icon className="h-8 w-8" />
-            </div>
-
-            <div>
-              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
-              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
-                {alertModal.message}
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
-                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
-              >
-                Tutup & Selesai
               </button>
             </div>
           </div>

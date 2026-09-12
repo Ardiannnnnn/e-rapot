@@ -8,6 +8,7 @@ import {
   toggleStatusSekolahAction,
 } from "@/actions/sekolah";
 import { CheckCircle2Icon, AlertCircleIcon, SaveIcon } from "@/components/shared/icons";
+import { toast } from "@/components/shared/toast";
 
 export interface SekolahItem {
   id: string;
@@ -26,7 +27,8 @@ export interface SekolahItem {
   users?: {
     id: string;
     name: string;
-    role: string;
+    role: any;
+    email?: string;
   }[];
 }
 
@@ -40,19 +42,6 @@ export default function KelolaSekolahClient({ initialSekolahList }: { initialSek
     sekolah: SekolahItem;
     targetIsStatus: boolean;
   } | null>(null);
-
-  // Alert Dialog Modal State (Setelah Berhasil Tambah/Edit/Hapus)
-  const [alertModal, setAlertModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type: "success" | "info";
-  }>({
-    isOpen: false,
-    title: "",
-    message: "",
-    type: "success",
-  });
 
   // State Form Input (Tambah / Edit)
   const [npsn, setNpsn] = useState("");
@@ -227,12 +216,7 @@ export default function KelolaSekolahClient({ initialSekolahList }: { initialSek
 
       if (res.success) {
         setIsAddModalOpen(false);
-        setAlertModal({
-          isOpen: true,
-          title: "Sekolah Berhasil Didaftarkan!",
-          message: `Instansi sekolah '${nama.trim()}' (NPSN: ${npsn.trim()}) telah berhasil ditambahkan dengan status AKTIF (isStatus = 1).`,
-          type: "success",
-        });
+        toast.success(`Instansi sekolah '${nama.trim()}' (NPSN: ${npsn.trim()}) berhasil ditambahkan.`);
       } else {
         setFormError(res.message || "Gagal mendaftarkan sekolah.");
       }
@@ -272,12 +256,7 @@ export default function KelolaSekolahClient({ initialSekolahList }: { initialSek
 
       if (res.success) {
         setEditingSekolah(null);
-        setAlertModal({
-          isOpen: true,
-          title: "Data Sekolah Berhasil Diperbarui!",
-          message: `Perubahan profil sekolah '${nama.trim()}' telah berhasil disimpan ke database.`,
-          type: "success",
-        });
+        toast.success(`Perubahan profil sekolah '${nama.trim()}' berhasil disimpan.`);
       } else {
         setFormError(res.message || "Gagal memperbarui data sekolah.");
       }
@@ -294,21 +273,13 @@ export default function KelolaSekolahClient({ initialSekolahList }: { initialSek
 
       setConfirmToggleSekolah(null);
       if (res.success) {
-        setAlertModal({
-          isOpen: true,
-          title: targetIsStatus ? "Sekolah Berhasil Diaktifkan!" : "Sekolah Berhasil Dinonaktifkan (Soft Delete)!",
-          message: targetIsStatus
-            ? `Sekolah '${sekolah.nama}' kini telah AKTIF kembali (isStatus = 1).`
-            : `Sekolah '${sekolah.nama}' telah dinonaktifkan (isStatus = 0). Data tidak dihapus permanen dan dapat diaktifkan kembali kapan saja.`,
-          type: targetIsStatus ? "success" : "info",
-        });
+        toast.success(
+          targetIsStatus
+            ? `Sekolah '${sekolah.nama}' kini telah AKTIF kembali.`
+            : `Sekolah '${sekolah.nama}' telah dinonaktifkan (Soft Delete).`
+        );
       } else {
-        setAlertModal({
-          isOpen: true,
-          title: "Operasi Gagal",
-          message: res.message,
-          type: "info",
-        });
+        toast.error(res.message);
       }
     });
   };
@@ -800,38 +771,6 @@ export default function KelolaSekolahClient({ initialSekolahList }: { initialSek
                   : confirmToggleSekolah.targetIsStatus
                   ? "Ya, Aktifkan Kembali"
                   : "Ya, Nonaktifkan (Soft Delete)"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* 3. ALERT MODAL SUKSES (POP-UP NOTIFIKASI BERHASIL)       */}
-      {/* ========================================================= */}
-      {alertModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="mx-auto w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <CheckCircle2Icon className="h-8 w-8" />
-            </div>
-
-            <div>
-              <h3 className="font-bold text-zinc-900 text-lg font-poppins">
-                {alertModal.title}
-              </h3>
-              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
-                {alertModal.message}
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
-                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
-              >
-                Tutup & Selesai
               </button>
             </div>
           </div>

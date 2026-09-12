@@ -1,15 +1,61 @@
 "use client";
 
-import React, { useState, useTransition, useMemo } from "react";
+import React, { useState, useTransition, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { simpanNilaiBatchAction, NilaiInputItem } from "@/actions/nilai";
-import { FormInputNilaiProps } from "@/types/guru";
+import { FormInputNilaiProps, SiswaItem, NilaiData, TPItem } from "@/types/guru";
 import {
   TablePaginationInfo,
   TablePaginationNav,
 } from "@/components/shared/table-pagination";
-import { CheckCircle2Icon, AlertCircleIcon } from "@/components/shared/icons";
+import { toast } from "@/components/shared/toast";
+
+// Helper untuk membangun data form awal dari nilai & TP tersimpan
+function buildInitialValues(
+  siswaList: SiswaItem[],
+  nilaiList: NilaiData[],
+  tpList: TPItem[]
+) {
+  const values: Record<
+    string,
+    { tugas: string; uts: string; uas: string; checkedTPs: string[] }
+  > = {};
+
+  siswaList.forEach((s) => {
+    const existing = nilaiList.find((n) => n.siswaId === s.id);
+
+    // Ambil TP yang sudah pernah tersimpan sebelumnya (jika ada)
+    const savedChecked: string[] = [];
+    if (existing?.catatan) {
+      // Ambil kode-kode TP dari format catatan: "TP Tercapai: TP 1, TP 2"
+      const rawCodes = existing.catatan
+        .replace(/^TP Tercapai:\s*/i, "")
+        .split(",")
+        .map((c) => c.trim().toLowerCase())
+        .filter(Boolean);
+
+      tpList.forEach((t) => {
+        const codeClean = (t.kode || "").trim().toLowerCase();
+        if (
+          (codeClean && rawCodes.includes(codeClean)) ||
+          (t.deskripsi && existing.catatan?.toLowerCase().includes(t.deskripsi.toLowerCase()))
+        ) {
+          savedChecked.push(t.id);
+        }
+      });
+    }
+
+    values[s.id] = {
+      tugas: existing && existing.nilaiTugas > 0 ? String(existing.nilaiTugas) : "",
+      uts: existing && existing.nilaiUTS > 0 ? String(existing.nilaiUTS) : "",
+      uas: existing && existing.nilaiUAS > 0 ? String(existing.nilaiUAS) : "",
+      checkedTPs: savedChecked,
+    };
+  });
+
+  return values;
+}
 
 export default function FormInputNilai({
   daftarPengampu,
@@ -23,20 +69,6 @@ export default function FormInputNilai({
 }: FormInputNilaiProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Modal alert pop-up (sesuai aturan AGENTS.md)
-  const [alertModal, setAlertModal] = useState<{
-    isOpen: boolean;
-    type: "success" | "error";
-    title: string;
-    message: string;
-  }>({
-    isOpen: false,
-    type: "success",
-    title: "",
-    message: "",
-  });
 
   // State pagination & pencarian siswa
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,33 +76,14 @@ export default function FormInputNilai({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Inisialisasi state form per siswa
-  const initialValues: Record<
-    string,
-    { tugas: string; uts: string; uas: string; checkedTPs: string[] }
-  > = {};
+  const [formData, setFormData] = useState(() =>
+    buildInitialValues(siswaList, nilaiList, tpList)
+  );
 
-  siswaList.forEach((s) => {
-    const existing = nilaiList.find((n) => n.siswaId === s.id);
-
-    // Ambil TP yang sudah pernah tersimpan sebelumnya (jika ada)
-    const savedChecked: string[] = [];
-    if (existing?.catatan) {
-      tpList.forEach((t) => {
-        if (existing.catatan?.includes(t.kode) || existing.catatan?.includes(t.deskripsi)) {
-          savedChecked.push(t.id);
-        }
-      });
-    }
-
-    initialValues[s.id] = {
-      tugas: existing && existing.nilaiTugas > 0 ? String(existing.nilaiTugas) : "",
-      uts: existing && existing.nilaiUTS > 0 ? String(existing.nilaiUTS) : "",
-      uas: existing && existing.nilaiUAS > 0 ? String(existing.nilaiUAS) : "",
-      checkedTPs: savedChecked,
-    };
-  });
-
-  const [formData, setFormData] = useState(initialValues);
+  // Sinkronisasi state form jika data server berubah atau setelah simpan berhasil
+  useEffect(() => {
+    setFormData(buildInitialValues(siswaList, nilaiList, tpList));
+  }, [siswaList, nilaiList, tpList]);
 
   // Filter & Pagination data siswa
   const filteredSiswaList = useMemo(() => {
@@ -151,39 +164,51 @@ export default function FormInputNilai({
     return { label: "D (Perlu Bimbingan)", color: "text-rose-700 bg-rose-50 border-rose-200" };
   };
 
-  // Auto-fill simulasi nilai dan centang TP
+  // Auto-fill nilai dan centang ketercapaian TP otomatis
   const handleAutoFill = (val: number) => {
     const nextState: typeof formData = {};
     siswaList.forEach((s) => {
-      const offset = (s.nama.charCodeAt(0) % 15) - 3;
-      const t = Math.min(100, Math.max(60, val + offset));
-      const u = Math.min(100, Math.max(60, val + offset + 2));
-      const a = Math.min(100, Math.max(60, val + offset + 4));
-      const na = hitungNilaiAkhir(String(t), String(u), String(a));
+      const current = formData[s.id];
 
+      // Jika guru sudah menginput/mengubah nilai, pertahankan nilai tersebut.
+      // Nilai simulasi hanya diisi jika kolom input masih kosong.
+      const offset = (s.nama.charCodeAt(0) % 15) - 3;
+      const t =
+        current?.tugas !== "" && current?.tugas !== undefined
+          ? current.tugas
+          : String(Math.min(100, Math.max(60, val + offset)));
+      const u =
+        current?.uts !== "" && current?.uts !== undefined
+          ? current.uts
+          : String(Math.min(100, Math.max(60, val + offset + 2)));
+      const a =
+        current?.uas !== "" && current?.uas !== undefined
+          ? current.uas
+          : String(Math.min(100, Math.max(60, val + offset + 4)));
+
+      const na = hitungNilaiAkhir(t, u, a);
+
+      // Otomatis centang TP berdasarkan Nilai Akhir terkini:
+      // Nilai >= 85 tuntas seluruh TP, nilai < 85 tuntas sebagian
       const checked =
         na >= 85
           ? tpList.map((tp) => tp.id)
           : tpList.slice(0, Math.max(1, tpList.length - 1)).map((tp) => tp.id);
 
       nextState[s.id] = {
-        tugas: String(t),
-        uts: String(u),
-        uas: String(a),
+        tugas: t,
+        uts: u,
+        uas: a,
         checkedTPs: checked,
       };
     });
     setFormData(nextState);
-    setMessage({
-      type: "success",
-      text: "Nilai simulasi dan centang TP berhasil diisikan. Klik 'Simpan Semua Nilai' untuk menyimpan ke database.",
-    });
+    toast.info("Auto-fill berhasil: nilai dipertahankan dan ketercapaian TP disesuaikan otomatis.");
   };
 
   // Submit Simpan Nilai dengan Validasi Lengkap
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     // Validasi Form: Cek apakah ada nilai yang di luar rentang 0-100
     for (const s of siswaList) {
@@ -193,30 +218,15 @@ export default function FormInputNilai({
         const u = parseFloat(d.uts);
         const a = parseFloat(d.uas);
         if (!isNaN(t) && (t < 0 || t > 100)) {
-          setAlertModal({
-            isOpen: true,
-            type: "error",
-            title: "Validasi Gagal",
-            message: `Nilai Tugas untuk ${s.nama} (${d.tugas}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`,
-          });
+          toast.error(`Nilai Tugas untuk ${s.nama} (${d.tugas}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`);
           return;
         }
         if (!isNaN(u) && (u < 0 || u > 100)) {
-          setAlertModal({
-            isOpen: true,
-            type: "error",
-            title: "Validasi Gagal",
-            message: `Nilai UTS untuk ${s.nama} (${d.uts}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`,
-          });
+          toast.error(`Nilai UTS untuk ${s.nama} (${d.uts}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`);
           return;
         }
         if (!isNaN(a) && (a < 0 || a > 100)) {
-          setAlertModal({
-            isOpen: true,
-            type: "error",
-            title: "Validasi Gagal",
-            message: `Nilai UAS untuk ${s.nama} (${d.uas}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`,
-          });
+          toast.error(`Nilai UAS untuk ${s.nama} (${d.uas}) tidak valid. Nilai harus berada dalam rentang 0 sampai 100.`);
           return;
         }
       }
@@ -249,22 +259,10 @@ export default function FormInputNilai({
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
-        setAlertModal({
-          isOpen: true,
-          type: "success",
-          title: "Berhasil Menyimpan Nilai",
-          message: res.message,
-        });
+        toast.success(res.message);
         router.refresh();
       } else {
-        setMessage({ type: "error", text: res.message });
-        setAlertModal({
-          isOpen: true,
-          type: "error",
-          title: "Gagal Menyimpan Nilai",
-          message: res.message,
-        });
+        toast.error(res.message);
       }
     });
   };
@@ -480,26 +478,6 @@ export default function FormInputNilai({
           </button>
         </div>
       </div>
-
-      {/* Pesan Notifikasi Banner */}
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-          }`}
-        >
-          <span>{message.text}</span>
-          <button
-            type="button"
-            onClick={() => setMessage(null)}
-            className="text-zinc-600 hover:text-zinc-900 font-bold ml-2 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Fitur Pencarian & Info Pagination */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -736,44 +714,6 @@ export default function FormInputNilai({
         totalItems={totalFiltered}
         onPageChange={(page) => setCurrentPage(page)}
       />
-
-      {/* Alert Modal Pop-up Berhasil/Gagal (Sesuai Aturan AGENTS.md) */}
-      {alertModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-stone-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div
-              className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center ${
-                alertModal.type === "success"
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-rose-100 text-rose-700"
-              }`}
-            >
-              {alertModal.type === "success" ? (
-                <CheckCircle2Icon className="h-8 w-8" />
-              ) : (
-                <AlertCircleIcon className="h-8 w-8" />
-              )}
-            </div>
-
-            <div>
-              <h3 className="font-bold text-zinc-900 text-lg font-poppins">{alertModal.title}</h3>
-              <p className="text-xs text-zinc-600 mt-1 leading-relaxed px-2">
-                {alertModal.message}
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setAlertModal((p) => ({ ...p, isOpen: false }))}
-                className="w-full py-2.5 rounded-xl bg-[#1b4332] hover:bg-[#143225] text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer"
-              >
-                Tutup & Selesai
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

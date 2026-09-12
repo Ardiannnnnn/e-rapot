@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   PrinterIcon,
@@ -17,6 +17,7 @@ import {
   simpanBulkKenaikanAction,
   simpanBulkEkskulAction,
 } from "@/actions/wali-kelas";
+import { toast } from "@/components/shared/toast";
 import {
   SiswaPelengkapItem,
   FormPelengkapProps,
@@ -71,6 +72,7 @@ const DEFAULT_EKSKUL_OPTIONS = [
 ];
 
 export default function FormPelengkapClient({
+  kelasId,
   kelasNama,
   tingkat,
   tahunAjaran,
@@ -83,7 +85,16 @@ export default function FormPelengkapClient({
   const [savedSiswaList, setSavedSiswaList] = useState<SiswaPelengkapItem[]>(initialSiswaList);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [isBulkSaving, setIsBulkSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Mengalirkan seluruh notifikasi form pelengkap ke Floating Toast
+  const setMessage = (msg: { type: "success" | "error"; text: string } | null) => {
+    if (!msg) return;
+    if (msg.type === "success") {
+      toast.success(msg.text);
+    } else {
+      toast.error(msg.text);
+    }
+  };
 
   // Kumpulan opsi kebiasaan, saran & ekskul (ditarik dari Master Deskripsi atau default)
   const [opsiKebiasaanList] = useState<string[]>(() => {
@@ -124,6 +135,12 @@ export default function FormPelengkapClient({
 
   const isSemesterGenap = semester === 2;
   const isKelasAkhir = tingkat === 6;
+
+  useEffect(() => {
+    if (!isSemesterGenap && activeTab === "KENAIKAN") {
+      setActiveTab("PRESENSI");
+    }
+  }, [isSemesterGenap, activeTab]);
 
   // Update attendance field
   const handlePresensiChange = (
@@ -483,8 +500,9 @@ export default function FormPelengkapClient({
         siswa.kebiasaanKarakter ||
         `${siswa.nama.toUpperCase()} Terbiasa dalam beribadah dan Belum Terbiasa dalam tidur cepat`;
 
-      const statusKenaikan =
-        siswa.statusKenaikan || (isKelasAkhir ? "LULUS" : `Naik ke Kelas ${tingkat + 1}`);
+      const statusKenaikan = isSemesterGenap
+        ? siswa.statusKenaikan || (isKelasAkhir ? "LULUS" : `Naik ke Kelas ${tingkat + 1}`)
+        : siswa.statusKenaikan || "";
 
       const res = await simpanPelengkapAction({
         siswaId: siswa.id,
@@ -776,30 +794,6 @@ export default function FormPelengkapClient({
         </div>
       </div>
 
-      {/* Alert Notifikasi */}
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs sm:text-sm flex items-start gap-3 border ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-              : "bg-rose-50 text-rose-900 border-rose-200"
-          }`}
-        >
-          {message.type === "success" ? (
-            <CheckCircle2Icon className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-          ) : (
-            <AlertCircleIcon className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1">{message.text}</div>
-          <button
-            onClick={() => setMessage(null)}
-            className="text-zinc-400 hover:text-zinc-600 p-1"
-          >
-            <XIcon className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
       {/* Tab Navigation */}
       <div className="flex flex-wrap gap-2 border-b border-stone-200 pb-2">
         <button
@@ -934,38 +928,52 @@ export default function FormPelengkapClient({
           )}
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("KENAIKAN")}
-          className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-            activeTab === "KENAIKAN"
-              ? "bg-[#1b4332] text-white shadow-xs"
-              : "bg-stone-100 text-zinc-600 hover:bg-stone-200"
-          }`}
-        >
-          <span>5. Kenaikan / Kelulusan {isSemesterGenap ? "(Aktif)" : "(Semester Genap)"}</span>
-          {kenaikanSavedCount === siswaList.length ? (
-            <span
-              className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
-                activeTab === "KENAIKAN"
-                  ? "bg-emerald-400 text-emerald-950"
-                  : "bg-emerald-100 text-emerald-800"
-              }`}
-            >
-              ✓
+        {isSemesterGenap ? (
+          <button
+            type="button"
+            onClick={() => setActiveTab("KENAIKAN")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === "KENAIKAN"
+                ? "bg-[#1b4332] text-white shadow-xs"
+                : "bg-stone-100 text-zinc-600 hover:bg-stone-200"
+            }`}
+          >
+            <span>5. Kenaikan / Kelulusan</span>
+            {kenaikanSavedCount === siswaList.length ? (
+              <span
+                className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
+                  activeTab === "KENAIKAN"
+                    ? "bg-emerald-400 text-emerald-950"
+                    : "bg-emerald-100 text-emerald-800"
+                }`}
+              >
+                ✓
+              </span>
+            ) : (
+              <span
+                className={`inline-flex items-center justify-center px-1.5 h-4 rounded-full text-[9px] font-bold ${
+                  activeTab === "KENAIKAN"
+                    ? "bg-amber-400 text-amber-950"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                {kenaikanSavedCount}/{siswaList.length}
+              </span>
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="Keputusan Kenaikan / Kelulusan hanya aktif pada Semester Genap (Semester 2)"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium bg-stone-100/80 text-zinc-400 cursor-not-allowed border border-dashed border-stone-300 select-none opacity-80"
+          >
+            <span>5. Kenaikan / Kelulusan</span>
+            <span className="text-[10px] bg-stone-200/90 text-zinc-500 px-2 py-0.5 rounded-md font-medium">
+              🔒 Khusus Semester Genap
             </span>
-          ) : (
-            <span
-              className={`inline-flex items-center justify-center px-1.5 h-4 rounded-full text-[9px] font-bold ${
-                activeTab === "KENAIKAN"
-                  ? "bg-amber-400 text-amber-950"
-                  : "bg-amber-100 text-amber-800"
-              }`}
-            >
-              {kenaikanSavedCount}/{siswaList.length}
-            </span>
-          )}
-        </button>
+          </button>
+        )}
       </div>
 
       {/* Konten Tab Aktif */}
@@ -1030,7 +1038,7 @@ export default function FormPelengkapClient({
         />
       )}
 
-      {activeTab === "KENAIKAN" && (
+      {activeTab === "KENAIKAN" && isSemesterGenap && (
         <TabKenaikan
           siswaList={siswaList}
           tingkat={tingkat}

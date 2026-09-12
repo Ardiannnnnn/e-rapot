@@ -2,6 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import { updateProfilSekolahAction } from "@/actions/sekolah";
+import { toast } from "@/components/shared/toast";
 
 interface ProfilSekolahData {
   id: string;
@@ -15,7 +16,6 @@ interface ProfilSekolahData {
 
 export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahData }) {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [npsn, setNpsn] = useState(sekolah.npsn);
   const [nama, setNama] = useState(sekolah.nama);
@@ -59,10 +59,9 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
-    setMessage(null);
 
     if (npsnError || nipError || !npsn.trim() || !nama.trim()) {
-      setMessage({ type: "error", text: "Silakan periksa dan perbaiki input yang masih berwarna merah." });
+      toast.error("Silakan periksa dan perbaiki input yang masih berwarna merah.");
       return;
     }
 
@@ -77,9 +76,9 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
       });
 
       if (res.success) {
-        setMessage({ type: "success", text: res.message || "Profil sekolah berhasil diperbarui." });
+        toast.success(res.message || "Profil sekolah berhasil diperbarui.");
       } else {
-        setMessage({ type: "error", text: res.message || "Gagal memperbarui profil." });
+        toast.error(res.message || "Gagal memperbarui profil.");
       }
     });
   };
@@ -88,30 +87,15 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Form Input Data Sekolah */}
       <div className="lg:col-span-2 space-y-6">
-        <form onSubmit={handleSubmit} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-5">
-          <div className="border-b border-stone-200 pb-4">
+        <form onSubmit={handleSubmit} className="bg-white border border-stone-200 rounded-2xl p-6 sm:p-7 shadow-xs space-y-6">
+          <div>
             <h2 className="text-base font-bold text-zinc-900 font-poppins">
-              Identitas Satuan Pendidikan & Kepala Sekolah
+              Informasi Satuan Pendidikan
             </h2>
             <p className="text-xs text-zinc-600 mt-0.5">
               Data ini digunakan secara otomatis pada bagian kop rapor dan pengesahan tanda tangan kepala sekolah.
             </p>
           </div>
-
-          {message && (
-            <div
-              className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-                message.type === "success"
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  : "bg-rose-50 text-rose-800 border-rose-200"
-              }`}
-            >
-              <span>{message.text}</span>
-              <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-                ✕
-              </button>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

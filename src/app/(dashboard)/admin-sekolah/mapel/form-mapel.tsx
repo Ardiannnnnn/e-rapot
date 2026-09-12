@@ -2,6 +2,8 @@
 
 import React, { useState, useTransition } from "react";
 import { createMapelAction, updateMapelAction, deleteMapelAction } from "@/actions/mapel";
+import { Trash2Icon } from "@/components/shared/icons";
+import { toast } from "@/components/shared/toast";
 
 export interface MapelItem {
   id: string;
@@ -15,10 +17,10 @@ export interface MapelItem {
 
 export default function FormMapel({ initialMapelList }: { initialMapelList: MapelItem[] }) {
   const [isPending, startTransition] = useTransition();
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [search, setSearch] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MapelItem | null>(null);
   const [kode, setKode] = useState("");
   const [nama, setNama] = useState("");
   const [isMulok, setIsMulok] = useState(false);
@@ -38,19 +40,18 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage(null);
 
     startTransition(async () => {
       const res = await createMapelAction({ kode, nama, isMulok, isSeni });
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        toast.success(res.message);
         setKode("");
         setNama("");
         setIsMulok(false);
         setIsSeni(false);
         setIsAddModalOpen(false);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -58,7 +59,6 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingMapel) return;
-    setMessage(null);
 
     startTransition(async () => {
       const res = await updateMapelAction({
@@ -69,24 +69,21 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
         isSeni: editIsSeni,
       });
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        toast.success(res.message);
         setEditingMapel(null);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
 
-  const handleDelete = (id: string, name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus mata pelajaran '${name}'?`)) return;
-    setMessage(null);
-
+  const executeDelete = (id: string) => {
     startTransition(async () => {
       const res = await deleteMapelAction(id);
       if (res.success) {
-        setMessage({ type: "success", text: res.message });
+        toast.success(res.message);
       } else {
-        setMessage({ type: "error", text: res.message });
+        toast.error(res.message);
       }
     });
   };
@@ -114,21 +111,6 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
           <span>Tambah Mata Pelajaran</span>
         </button>
       </div>
-
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-              : "bg-rose-50 text-rose-800 border-rose-200"
-          }`}
-        >
-          <span>{message.text}</span>
-          <button type="button" onClick={() => setMessage(null)} className="font-bold text-zinc-600 ml-2">
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Tabel Data Mata Pelajaran */}
       <div className="rounded-2xl border border-stone-200 bg-white shadow-xs overflow-hidden">
@@ -216,7 +198,7 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
 
                         <button
                           type="button"
-                          onClick={() => handleDelete(m.id, m.nama)}
+                          onClick={() => setDeleteTarget(m)}
                           disabled={isPending}
                           className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition"
                           title="Hapus mapel"
@@ -501,6 +483,53 @@ export default function FormMapel({ initialMapelList }: { initialMapelList: Mape
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dialog Konfirmasi Hapus Mapel (In-App Modal) */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-stone-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                <Trash2Icon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-zinc-900 font-poppins">
+                  Hapus Mata Pelajaran?
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-zinc-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus mata pelajaran{" "}
+              <strong className="text-zinc-900 font-semibold">{deleteTarget.nama}</strong> ({deleteTarget.kode})?
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-stone-50 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  const target = deleteTarget;
+                  setDeleteTarget(null);
+                  executeDelete(target.id);
+                }}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 transition disabled:opacity-50"
+              >
+                {isPending ? "Menghapus..." : "Ya, Hapus Mapel"}
+              </button>
+            </div>
           </div>
         </div>
       )}

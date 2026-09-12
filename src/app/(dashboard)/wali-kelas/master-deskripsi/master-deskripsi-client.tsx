@@ -20,6 +20,7 @@ import {
   hapusTemplateAction,
   resetDefaultTemplateAction,
 } from "@/actions/master-deskripsi";
+import { toast } from "@/components/shared/toast";
 import {
   TemplateItem,
   KategoriTemplate,
@@ -53,7 +54,6 @@ export default function MasterDeskripsiClient({
   const [saranWaliList, setSaranWaliList] = useState<TemplateItem[]>(initialSaranWali);
   const [ekskulList, setEkskulList] = useState<TemplateItem[]>(initialEkskul || []);
 
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TemplateItem | null>(null);
@@ -71,7 +71,6 @@ export default function MasterDeskripsiClient({
   // Handle Tambah Template
   const handleTambah = async (judul: string, teks: string): Promise<boolean> => {
     setIsSubmitting(true);
-    setMessage(null);
 
     try {
       const res = await tambahTemplateAction({
@@ -97,15 +96,15 @@ export default function MasterDeskripsiClient({
           setEkskulList((prev) => [...prev, newItem]);
         }
 
-        setMessage({ type: "success", text: res.message || "Berhasil menambahkan template." });
+        toast.success(res.message || "Berhasil menambahkan template.");
         return true;
       } else {
-        setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+        toast.error("Ada masalah dengan koneksi, silakan coba lagi");
         return false;
       }
     } catch {
       setIsSubmitting(false);
-      setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+      toast.error("Ada masalah dengan koneksi, silakan coba lagi");
       return false;
     }
   };
@@ -113,7 +112,6 @@ export default function MasterDeskripsiClient({
   // Handle Update
   const handleUpdate = async (id: string, teks: string, judul?: string): Promise<boolean> => {
     setIsSubmitting(true);
-    setMessage(null);
 
     try {
       const res = await updateTemplateAction(id, teks, judul);
@@ -130,15 +128,15 @@ export default function MasterDeskripsiClient({
         else if (activeTab === "SARAN_WALI") setSaranWaliList(updater);
         else setEkskulList(updater);
 
-        setMessage({ type: "success", text: "Perubahan berhasil disimpan." });
+        toast.success("Perubahan berhasil disimpan.");
         return true;
       } else {
-        setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+        toast.error("Ada masalah dengan koneksi, silakan coba lagi");
         return false;
       }
     } catch {
       setIsSubmitting(false);
-      setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+      toast.error("Ada masalah dengan koneksi, silakan coba lagi");
       return false;
     }
   };
@@ -148,7 +146,6 @@ export default function MasterDeskripsiClient({
     if (!deleteTarget) return;
     const id = deleteTarget.id;
     setIsSubmitting(true);
-    setMessage(null);
 
     try {
       const res = await hapusTemplateAction(id);
@@ -161,21 +158,20 @@ export default function MasterDeskripsiClient({
         else if (activeTab === "SARAN_WALI") setSaranWaliList(remover);
         else setEkskulList(remover);
 
-        setMessage({ type: "success", text: "Template berhasil dihapus." });
+        toast.success("Template berhasil dihapus.");
         setDeleteTarget(null);
       } else {
-        setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+        toast.error("Ada masalah dengan koneksi, silakan coba lagi");
       }
     } catch {
       setIsSubmitting(false);
-      setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+      toast.error("Ada masalah dengan koneksi, silakan coba lagi");
     }
   };
 
   // Reset Default
   const handleConfirmReset = async () => {
     setIsSubmitting(true);
-    setMessage(null);
 
     try {
       const res = await resetDefaultTemplateAction(kelasId, tahunAjaran, semester);
@@ -183,14 +179,15 @@ export default function MasterDeskripsiClient({
 
       if (res.success) {
         setIsResetConfirmOpen(false);
+        toast.success("Template berhasil di-reset ke standar nasional.");
         window.location.reload();
       } else {
-        setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+        toast.error("Ada masalah dengan koneksi, silakan coba lagi");
         setIsResetConfirmOpen(false);
       }
     } catch {
       setIsSubmitting(false);
-      setMessage({ type: "error", text: "Ada masalah dengan koneksi, silakan coba lagi" });
+      toast.error("Ada masalah dengan koneksi, silakan coba lagi");
       setIsResetConfirmOpen(false);
     }
   };
@@ -248,30 +245,6 @@ export default function MasterDeskripsiClient({
           </div>
         </div>
       </div>
-
-      {/* Alert Notifikasi */}
-      {message && (
-        <div
-          className={`p-4 rounded-xl text-xs sm:text-sm flex items-start gap-3 border ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-              : "bg-rose-50 text-rose-900 border-rose-200"
-          }`}
-        >
-          {message.type === "success" ? (
-            <CheckCircle2Icon className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-          ) : (
-            <AlertCircleIcon className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
-          )}
-          <div className="flex-1">{message.text}</div>
-          <button
-            onClick={() => setMessage(null)}
-            className="text-zinc-400 hover:text-zinc-600 p-1"
-          >
-            <XIcon className="h-4 w-4" />
-          </button>
-        </div>
-      )}
 
       {/* Tab Navigasi 4 Kategori */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 pb-2">
