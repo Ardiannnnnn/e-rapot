@@ -2,10 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 export async function createMapelAction(payload: { kode: string; nama: string; isMulok?: boolean; isSeni?: boolean }) {
-  await requireUser();
+  const user = await requireUser();
   const { kode, nama, isMulok = false, isSeni = false } = payload;
 
   if (!kode || !nama) {
@@ -36,6 +36,7 @@ export async function createMapelAction(payload: { kode: string; nama: string; i
     revalidatePath("/admin-sekolah/kelas");
     revalidatePath("/wali-kelas/cetak");
     revalidatePath("/guru");
+    if (user.sekolahId) updateTag(`mapel-${user.sekolahId}`);
 
     return { success: true, message: `Mata pelajaran '${nama}' berhasil ditambahkan.` };
   } catch (error: any) {
@@ -45,7 +46,7 @@ export async function createMapelAction(payload: { kode: string; nama: string; i
 }
 
 export async function updateMapelAction(payload: { id: string; kode: string; nama: string; isMulok?: boolean; isSeni?: boolean }) {
-  await requireUser();
+  const user = await requireUser();
   const { id, kode, nama, isMulok, isSeni } = payload;
 
   if (!id || !kode || !nama) {
@@ -82,6 +83,7 @@ export async function updateMapelAction(payload: { id: string; kode: string; nam
     revalidatePath("/admin-sekolah/kelas");
     revalidatePath("/wali-kelas/cetak");
     revalidatePath("/guru");
+    if (user.sekolahId) updateTag(`mapel-${user.sekolahId}`);
 
     return { success: true, message: "Mata pelajaran berhasil diperbarui." };
   } catch (error: any) {
@@ -91,7 +93,7 @@ export async function updateMapelAction(payload: { id: string; kode: string; nam
 }
 
 export async function deleteMapelAction(id: string) {
-  await requireUser();
+  const user = await requireUser();
 
   try {
     // Cek apakah sudah ada data nilai siswa terkait mapel ini
@@ -113,6 +115,7 @@ export async function deleteMapelAction(id: string) {
     revalidatePath("/admin-sekolah/mapel");
     revalidatePath("/admin-sekolah/pendidik");
     revalidatePath("/guru");
+    if (user.sekolahId) updateTag(`mapel-${user.sekolahId}`);
 
     return { success: true, message: "Mata pelajaran berhasil dihapus." };
   } catch (error: any) {

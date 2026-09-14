@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getCachedSekolah } from "@/lib/cache";
 import FormProfilSekolah from "./form-profil";
 
 export default function AdminProfilPage() {
@@ -15,11 +16,9 @@ export default function AdminProfilPage() {
 async function AdminProfilContent() {
   const user = await requireUser();
 
-  // Cari sekolah terkait user
+  // Cari sekolah terkait user menggunakan cached query
   let sekolah = user.sekolahId
-    ? await prisma.sekolah.findUnique({
-        where: { id: user.sekolahId },
-      })
+    ? await getCachedSekolah(user.sekolahId)
     : null;
 
   if (!sekolah) {

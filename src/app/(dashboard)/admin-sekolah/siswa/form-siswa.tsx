@@ -198,6 +198,25 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validasi batas ukuran file (maks 5MB) dan ekstensi
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    const allowedExtensions = [".xlsx", ".xls", ".csv"];
+    const fileExt = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt)) {
+      setImportErrors(["Format file tidak didukung. Harap unggah file dengan format .xlsx, .xls, atau .csv."]);
+      if (importFileInputRef.current) importFileInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setImportErrors([
+        `Ukuran file terlalu besar (${(file.size / (1024 * 1024)).toFixed(1)} MB). Batas maksimal ukuran file adalah 5 MB.`,
+      ]);
+      if (importFileInputRef.current) importFileInputRef.current.value = "";
+      return;
+    }
+
     setImportFileName(file.name);
     setImportErrors([]);
     setPreviewFilter("ALL");

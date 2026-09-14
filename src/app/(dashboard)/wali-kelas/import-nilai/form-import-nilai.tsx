@@ -174,6 +174,35 @@ export default function FormImportNilaiClient({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validasi batas ukuran file (maks 5MB) dan ekstensi yang sah
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+    const allowedExtensions = [".xlsx", ".xls", ".csv"];
+    const fileExt = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt)) {
+      setWarningModal({
+        title: "Format File Tidak Didukung",
+        text: `File "${file.name}" tidak didukung. Harap unggah file dengan format .xlsx, .xls, atau .csv.`,
+        type: "error",
+        solution: "Pastikan Anda mengunggah file Excel hasil unduhan template resmi.",
+        showDownloadTemplate: false,
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setWarningModal({
+        title: "Ukuran File Terlalu Besar",
+        text: `File "${file.name}" berukuran ${(file.size / (1024 * 1024)).toFixed(1)} MB, melebihi batas maksimal 5 MB.`,
+        type: "error",
+        solution: "Gunakan file template Excel standar dengan ukuran di bawah 5 MB.",
+        showDownloadTemplate: false,
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     // Aturan 1: Validasi Awalan Nama File (Harus diawali Kode Mapel yang sah di kelas ini)
     const detectedMapel = detectMapelFromFilename(file.name, currentMapelList);
     if (!detectedMapel) {

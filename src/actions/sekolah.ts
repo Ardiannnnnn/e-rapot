@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { sanitizeInput } from "@/lib/sanitize";
 import { requireRole } from "@/lib/auth";
@@ -155,6 +155,7 @@ export async function updateProfilSekolahAction(payload: {
 
     revalidatePath("/admin-sekolah/profil");
     revalidatePath("/admin-sekolah");
+    updateTag(`sekolah-${sekolahId}`);
 
     return { success: true, message: "Profil identitas sekolah berhasil diperbarui." };
   } catch (error: any) {
@@ -241,6 +242,7 @@ export async function updateSekolahSuperAdminAction(payload: {
     revalidatePath("/super-admin/sekolah");
     revalidatePath(`/super-admin/sekolah/${id}/edit`);
     revalidatePath("/super-admin");
+    updateTag(`sekolah-${id}`);
 
     return { success: true, message: `Data sekolah '${cleanNama}' berhasil diperbarui.` };
   } catch (error: any) {

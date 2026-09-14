@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 /**
  * Mendapatkan Periode Akademik yang sedang AKTIF untuk sekolah pengguna login.
@@ -132,6 +132,7 @@ export async function setPeriodeAktifAction(periodeId: string) {
     revalidatePath("/guru");
     revalidatePath("/guru/siswa");
     revalidatePath("/guru/tp");
+    updateTag(`periode-aktif-${user.sekolahId}`);
 
     return {
       success: true,

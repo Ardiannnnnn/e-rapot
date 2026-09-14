@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { getCachedPeriodeAktif, getCachedSekolah } from "@/lib/cache";
 import CetakRaporClient from "./cetak-rapor-client";
 import { AlertCircleIcon } from "@/components/shared/icons";
 import { LembarRaporData, NilaiRaporItem } from "@/types/wali-kelas/cetak";
@@ -91,12 +92,10 @@ async function CetakContent(props: {
     );
   }
 
-  // 2. Ambil data sekolah
+  // 2. Ambil data sekolah (menggunakan cache server-side)
   const sekolahData =
     kelas.sekolah ||
-    (await prisma.sekolah.findFirst({
-      where: user.sekolahId ? { id: user.sekolahId } : undefined,
-    }));
+    (user.sekolahId ? await getCachedSekolah(user.sekolahId) : await prisma.sekolah.findFirst());
 
   const sekolah = {
     nama: sekolahData?.nama || "SDN 7 Simeulue Timur",
@@ -109,13 +108,10 @@ async function CetakContent(props: {
     provinsi: "Provinsi ACEH",
   };
 
-  // 3. Ambil periode akademik aktif
-  const periodeAktif = await prisma.periodeAkademik.findFirst({
-    where: {
-      ...(user.sekolahId ? { sekolahId: user.sekolahId } : {}),
-      isAktif: true,
-    },
-  });
+  // 3. Ambil periode akademik aktif (menggunakan cache server-side)
+  const periodeAktif = user.sekolahId
+    ? await getCachedPeriodeAktif(user.sekolahId)
+    : await prisma.periodeAkademik.findFirst({ where: { isAktif: true } });
 
   const tahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
   const semester = periodeAktif?.semester || 1;
@@ -193,18 +189,38 @@ async function CetakContent(props: {
   const waliKelasNama = kelas.waliKelas?.name || user.name;
   const waliKelasNip = (kelas.waliKelas as any)?.nip || (user as any)?.nip || null;
 
-  // 8. Hitung total nilai per siswa untuk menentukan peringkat di kelas
+  // 8. Hitung total nilai & alpa per siswa untuk menentukan peringkat di kelas secara adil
   const totalPerSiswa = siswaList.map((s) => {
     let sum = 0;
     pengampuList.forEach((pmp) => {
       const n = s.nilai.find((item) => item.mapelId === pmp.mapelId);
       sum += n?.nilaiAkhir || 0;
     });
-    return { id: s.id, total: sum };
+    const p = s.raporPelengkap[0];
+    const alpa = p?.alpa || 0;
+    return { id: s.id, total: sum, alpa };
   });
 
-  // Urutkan siswa berdasarkan total nilai tertinggi
-  const sortedRanking = [...totalPerSiswa].sort((a, b) => b.total - a.total);
+  // Urutkan siswa: Total nilai tertinggi lebih dulu, jika sama maka alpa paling sedikit
+  const sortedRanking = [...totalPerSiswa].sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    return a.alpa - b.alpa;
+  });
+
+  // Pemetaan Peringkat Standar Kompetisi Resmi (Jika nilai & alpa sama, menyandang juara kembar bersama)
+  const rankingMap = new Map<string, number>();
+  sortedRanking.forEach((item, idx) => {
+    if (idx === 0) {
+      rankingMap.set(item.id, 1);
+    } else {
+      const prev = sortedRanking[idx - 1];
+      if (item.total === prev.total && item.alpa === prev.alpa) {
+        rankingMap.set(item.id, rankingMap.get(prev.id)!);
+      } else {
+        rankingMap.set(item.id, idx + 1);
+      }
+    }
+  });
 
   // 9. Format data lembar rapor per siswa
   const raporList: LembarRaporData[] = siswaList.map((s) => {
@@ -257,9 +273,8 @@ async function CetakContent(props: {
       finalCatatanWali = masterSaran[0].teks;
     }
 
-    // Peringkat siswa saat ini (1-indexed)
-    const peringkatIndex = sortedRanking.findIndex((r) => r.id === s.id);
-    const peringkat = peringkatIndex >= 0 ? peringkatIndex + 1 : 1;
+    // Peringkat siswa yang adil berdasarkan nilai & absensi
+    const peringkat = rankingMap.get(s.id) || 1;
 
     // Bangun daftar nilai berdasarkan pengampu mapel & Tujuan Pembelajaran guru
     const nilaiList: NilaiRaporItem[] = pengampuList.map((pmp) => {
