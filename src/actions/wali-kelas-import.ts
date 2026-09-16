@@ -67,7 +67,26 @@ export async function importNilaiExcelAction(input: ImportNilaiInput) {
       nisnToSiswaMap.set(s.nisn.trim(), { id: s.id, nama: s.nama });
     }
 
-    // 4. Filter & siapkan operasi upsert
+    // 4. Ambil bobot penilaian pengampu jika ada
+    const pengampu = await prisma.pengampu.findFirst({
+      where: {
+        kelasId: input.kelasId,
+        mapelId: input.mapelId,
+        tahunAjaran: input.tahunAjaran,
+        OR: [{ semester: 0 }, { semester: input.semester }],
+      },
+      select: {
+        bobotTugas: true,
+        bobotUTS: true,
+        bobotUAS: true,
+      },
+    });
+
+    const wTugas = (pengampu?.bobotTugas ?? 30) / 100;
+    const wUTS = (pengampu?.bobotUTS ?? 30) / 100;
+    const wUAS = (pengampu?.bobotUAS ?? 40) / 100;
+
+    // 5. Filter & siapkan operasi upsert
     const validOperations: any[] = [];
     let matchedCount = 0;
 
@@ -86,7 +105,7 @@ export async function importNilaiExcelAction(input: ImportNilaiInput) {
       const calculatedAkhir =
         typeof item.nilaiAkhir === "number" && item.nilaiAkhir > 0
           ? Math.min(100, Math.max(0, item.nilaiAkhir))
-          : Math.round(tugas * 0.3 + uts * 0.3 + uas * 0.4);
+          : Math.round((tugas * wTugas + uts * wUTS + uas * wUAS) * 10) / 10;
 
       const cleanCatatan = item.catatan
         ? sanitizeInput(item.catatan, 500)
@@ -141,6 +160,7 @@ export async function importNilaiExcelAction(input: ImportNilaiInput) {
     revalidatePath("/wali-kelas/siswa");
     revalidatePath("/wali-kelas/cetak");
     revalidatePath("/wali-kelas/import-nilai");
+    revalidatePath("/wali-kelas/pengaturan-ranking");
     revalidatePath("/guru/siswa");
 
     return {

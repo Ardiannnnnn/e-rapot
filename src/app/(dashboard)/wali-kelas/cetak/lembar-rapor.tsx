@@ -528,11 +528,6 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* ===================== PEMISAH VISUAL ANTAR LEMBAR ======================== */}
-      {/* ========================================================================= */}
-      <div className="my-8 border-b-2 border-dashed border-stone-300 print:hidden" />
-
-      {/* ========================================================================= */}
       {/* ============================== LEMBAR 2 ================================= */}
       {/* ========================================================================= */}
       <div className="rapor-paper page-2 bg-white p-8 sm:p-10 max-w-[850px] mx-auto border border-stone-300 shadow-sm print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none text-[11px] leading-tight mt-6 print:mt-0">

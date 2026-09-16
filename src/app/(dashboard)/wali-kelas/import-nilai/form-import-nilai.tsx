@@ -359,10 +359,14 @@ export default function FormImportNilaiClient({
           const matchedNama = nisnToSiswaMap.get(rawNisn);
           const isValid = Boolean(matchedNama);
 
+          const wTugas = (detectedMapel.bobotTugas ?? 30) / 100;
+          const wUTS = (detectedMapel.bobotUTS ?? 30) / 100;
+          const wUAS = (detectedMapel.bobotUAS ?? 40) / 100;
+
           const tugas = parseFloat(String(row[tugasIdx] ?? 0)) || 0;
           const uts = parseFloat(String(row[utsIdx] ?? 0)) || 0;
           const uas = parseFloat(String(row[uasIdx] ?? 0)) || 0;
-          const akhir = Math.round(tugas * 0.3 + uts * 0.3 + uas * 0.4);
+          const akhir = Math.round((tugas * wTugas + uts * wUTS + uas * wUAS) * 10) / 10;
           const catatan = String(row[catatanIdx] ?? "").trim();
 
           rows.push({

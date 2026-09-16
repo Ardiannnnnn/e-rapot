@@ -39,6 +39,9 @@ export interface PengampuOption {
     kode: string;
     nama: string;
   };
+  bobotTugas?: number | null;
+  bobotUTS?: number | null;
+  bobotUAS?: number | null;
 }
 
 export interface TPItem {

@@ -73,6 +73,7 @@ model Kelas {
   siswa       Siswa[]
   pengampu    Pengampu[]
   templates   TemplateRapor[]
+  pengaturan  PengaturanKelas[]
 }
 
 model Siswa {
@@ -149,6 +150,11 @@ model Pengampu {
   // Kelas yang diajar
   kelasId     String
   kelas       Kelas    @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+
+  // Konfigurasi Bobot Penilaian Dinamis (%)
+  bobotTugas  Float?
+  bobotUTS    Float?
+  bobotUAS    Float?
 
   @@unique([kelasId, mapelId, tahunAjaran, semester])
 }
@@ -230,4 +236,24 @@ model TemplateRapor {
   updatedAt   DateTime @updatedAt
 
   @@index([kelasId, kategori, tahunAjaran, semester])
+}
+
+model PengaturanKelas {
+  id           String   @id @default(uuid())
+  kelasId      String
+  kelas        Kelas    @relation(fields: [kelasId], references: [id], onDelete: Cascade)
+  tahunAjaran  String   // Contoh: "2026/2027"
+  semester     Int      // 1 (Ganjil) atau 2 (Genap)
+
+  // Pengaturan Penalti Kehadiran untuk Perankingan Juara Kelas
+  penaltiAlpa  Float    @default(1.0)  // Pengurangan poin per 1 hari alpa
+  penaltiIzin  Float    @default(0.0)  // Pengurangan poin per 1 hari izin
+  penaltiSakit Float    @default(0.0)  // Pengurangan poin per 1 hari sakit
+  maxAlpaJuara Int?     @default(3)    // Batas maksimal alpa untuk syarat juara (null = tanpa batas)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([kelasId, tahunAjaran, semester])
+  @@index([kelasId, tahunAjaran, semester])
 }

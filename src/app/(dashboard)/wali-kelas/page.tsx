@@ -133,9 +133,54 @@ async function WaliKelasDashboardContent() {
   });
 
   const mapelLengkapCount = mapelProgress.filter((m) => m.isComplete).length;
-  const siswaPresensiLengkap = siswaList.filter(
-    (s) => s.raporPelengkap.length > 0 && s.raporPelengkap[0].catatanWali
-  ).length;
+
+  // 6. Analisis Kelengkapan Menu "Kelengkapan Data" (Rapor Pelengkap)
+  // Semester Ganjil = 4 Tab (Presensi, Ekskul, P5, 7 Kebiasaan)
+  // Semester Genap = 5 Tab (+ Kenaikan/Kelulusan)
+  const isSemesterGenap = semester === 2;
+  const totalTabPelengkap = isSemesterGenap ? 5 : 4;
+
+  let tabPelengkapLengkapCount = 0;
+  if (totalSiswa > 0) {
+    // Tab 1: Presensi & Saran Wali (lengkap jika semua siswa sudah memiliki data presensi)
+    const isTabPresensiLengkap = siswaList.every((s) => s.raporPelengkap.length > 0);
+    if (isTabPresensiLengkap) tabPelengkapLengkapCount++;
+
+    // Tab 2: Ekstrakurikuler (lengkap jika sudah tersimpan untuk semua siswa)
+    const isTabEkskulLengkap = siswaList.every(
+      (s) => s.raporPelengkap.length > 0 && s.raporPelengkap[0].ekskul !== null
+    );
+    if (isTabEkskulLengkap) tabPelengkapLengkapCount++;
+
+    // Tab 3: Kokurikuler Projek P5 (lengkap jika format json tema sudah tersimpan)
+    const isTabKokurikulerLengkap = siswaList.every((s) => {
+      const p = s.raporPelengkap[0];
+      if (!p || !p.kokurikuler) return false;
+      try {
+        const parsed = JSON.parse(p.kokurikuler);
+        return Array.isArray(parsed) && parsed.length > 0;
+      } catch {
+        return false;
+      }
+    });
+    if (isTabKokurikulerLengkap) tabPelengkapLengkapCount++;
+
+    // Tab 4: 7 Kebiasaan Anak Hebat (lengkap jika teks kebiasaan sudah tersimpan)
+    const isTabKebiasaanLengkap = siswaList.every((s) => {
+      const p = s.raporPelengkap[0];
+      return !!(p && p.kebiasaanKarakter && p.kebiasaanKarakter.trim().length > 0);
+    });
+    if (isTabKebiasaanLengkap) tabPelengkapLengkapCount++;
+
+    // Tab 5: Kenaikan / Kelulusan (hanya pada semester 2 / Genap)
+    if (isSemesterGenap) {
+      const isTabKenaikanLengkap = siswaList.every((s) => {
+        const p = s.raporPelengkap[0];
+        return !!(p && p.statusKenaikan && p.statusKenaikan.trim().length > 0);
+      });
+      if (isTabKenaikanLengkap) tabPelengkapLengkapCount++;
+    }
+  }
 
   const totalExpectedGrades = totalSiswa * totalMapel;
   const totalSubmittedGrades = mapelProgress.reduce((acc, curr) => acc + curr.gradedCount, 0);
@@ -148,7 +193,7 @@ async function WaliKelasDashboardContent() {
     totalSiswa > 0 &&
     totalMapel > 0 &&
     overallGradePercentage === 100 &&
-    siswaPresensiLengkap === totalSiswa;
+    tabPelengkapLengkapCount === totalTabPelengkap;
 
   return (
     <div className="space-y-8">
@@ -246,19 +291,29 @@ async function WaliKelasDashboardContent() {
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-              Presensi & Catatan
+              Kelengkapan Data
             </span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-800">
-              <SmileIcon className="h-5 w-5" />
+            <div
+              className={`p-2 rounded-xl ${
+                tabPelengkapLengkapCount === totalTabPelengkap
+                  ? "bg-emerald-50 text-emerald-800"
+                  : "bg-amber-50 text-amber-800"
+              }`}
+            >
+              {tabPelengkapLengkapCount === totalTabPelengkap ? (
+                <CheckCircle2Icon className="h-5 w-5" />
+              ) : (
+                <SmileIcon className="h-5 w-5" />
+              )}
             </div>
           </div>
           <p className="mt-2 text-3xl font-bold tracking-tight text-zinc-900 font-mono">
-            {siswaPresensiLengkap}/{totalSiswa}
+            {tabPelengkapLengkapCount}/{totalTabPelengkap}
           </p>
           <span className="mt-1 block text-xs text-zinc-600">
-            {siswaPresensiLengkap === totalSiswa
-              ? "Semua siswa sudah terekap"
-              : `${totalSiswa - siswaPresensiLengkap} siswa belum dilengkapi`}
+            {tabPelengkapLengkapCount === totalTabPelengkap
+              ? "Semua tab data tuntas disimpan"
+              : `${tabPelengkapLengkapCount} dari ${totalTabPelengkap} tab data tuntas`}
           </span>
         </div>
       </div>
@@ -298,10 +353,10 @@ async function WaliKelasDashboardContent() {
               <ArrowRightIcon className="h-4 w-4 text-zinc-600 group-hover:text-[#1b4332] group-hover:translate-x-0.5 transition-all" />
             </div>
             <h3 className="mt-3 font-semibold text-zinc-900 group-hover:text-[#1b4332] transition-colors">
-              Presensi, Catatan & Ekskul
+              Kelengkapan Data Rapor
             </h3>
             <p className="mt-1 text-xs text-zinc-600">
-              Input ketidakhadiran (S/I/A), pesan motivasi karakter, dan predikat kegiatan ekstrakurikuler.
+              Input presensi, saran wali, ekskul, P5, kebiasaan{isSemesterGenap ? ", dan kenaikan kelas" : ""}.
             </p>
           </Link>
 

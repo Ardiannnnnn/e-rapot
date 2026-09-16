@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { PrinterIcon, UsersIcon, UserIcon, ArrowLeftIcon, FileDownIcon } from "@/components/shared/icons";
 import Link from "next/link";
 import LembarRapor from "./lembar-rapor";
@@ -101,13 +101,21 @@ export default function CetakRaporClient({
             Tidak ada data rapor yang tersedia untuk dicetak.
           </div>
         ) : (
-          displayedList.map((r) => (
-            <div
-              key={r.siswa.id}
-              className="rapor-sheet-wrapper"
-            >
-              <LembarRapor data={r} />
-            </div>
+          displayedList.map((r, idx) => (
+            <React.Fragment key={r.siswa.id}>
+              <div className="rapor-sheet-wrapper">
+                <LembarRapor data={r} />
+              </div>
+              {idx < displayedList.length - 1 && (
+                <div className="flex items-center gap-4 py-4 print:hidden">
+                  <div className="flex-1 border-b-2 border-dashed border-stone-300" />
+                  <span className="text-[11px] font-semibold text-stone-400 uppercase tracking-wider select-none">
+                    Pemisah Rapor Siswa
+                  </span>
+                  <div className="flex-1 border-b-2 border-dashed border-stone-300" />
+                </div>
+              )}
+            </React.Fragment>
           ))
         )}
       </div>

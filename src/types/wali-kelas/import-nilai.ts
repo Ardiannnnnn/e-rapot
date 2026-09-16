@@ -5,6 +5,9 @@ export interface MapelImportItem {
   guruNama?: string;
   terisiCount?: number;
   totalSiswa?: number;
+  bobotTugas?: number;
+  bobotUTS?: number;
+  bobotUAS?: number;
 }
 
 export interface SiswaImportItem {

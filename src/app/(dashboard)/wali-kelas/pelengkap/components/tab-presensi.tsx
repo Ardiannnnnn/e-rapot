@@ -211,45 +211,51 @@ export function TabPresensi({
                     <input
                       type="number"
                       min="0"
-                      value={s.sakit}
+                      value={s.sakit === 0 ? "" : s.sakit}
+                      placeholder="0"
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) =>
                         onPresensiChange(
                           s.id,
                           "sakit",
-                          parseInt(e.target.value, 10) || 0
+                          e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0)
                         )
                       }
-                      className="w-full text-center p-2 border border-stone-300 rounded-lg text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500"
+                      className="w-full text-center p-2 border border-stone-300 rounded-lg text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500 placeholder:text-stone-400"
                     />
                   </td>
                   <td className="py-3 px-2">
                     <input
                       type="number"
                       min="0"
-                      value={s.izin}
+                      value={s.izin === 0 ? "" : s.izin}
+                      placeholder="0"
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) =>
                         onPresensiChange(
                           s.id,
                           "izin",
-                          parseInt(e.target.value, 10) || 0
+                          e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0)
                         )
                       }
-                      className="w-full text-center p-2 border border-stone-300 rounded-lg text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500"
+                      className="w-full text-center p-2 border border-stone-300 rounded-lg text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500 placeholder:text-stone-400"
                     />
                   </td>
                   <td className="py-3 px-2">
                     <input
                       type="number"
                       min="0"
-                      value={s.alpa}
+                      value={s.alpa === 0 ? "" : s.alpa}
+                      placeholder="0"
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) =>
                         onPresensiChange(
                           s.id,
                           "alpa",
-                          parseInt(e.target.value, 10) || 0
+                          e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0)
                         )
                       }
-                      className="w-full text-center p-2 border border-stone-300 rounded-lg text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500"
+                      className="w-full text-center p-2 border border-stone-300 rounded-lg text-xs font-bold font-mono focus:ring-1 focus:ring-emerald-500 placeholder:text-stone-400"
                     />
                   </td>
                   <td className="py-3 px-4">

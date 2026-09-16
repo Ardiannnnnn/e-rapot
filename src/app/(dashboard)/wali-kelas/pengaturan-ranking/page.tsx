@@ -2,26 +2,31 @@ import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
-import FormImportNilaiClient from "./form-import-nilai";
 import { AlertCircleIcon } from "@/components/shared/icons";
+import PengaturanRankingClient from "./pengaturan-ranking-client";
 
-export default function WaliKelasImportNilaiPage() {
+export const dynamic = "force-dynamic";
+
+export default function PengaturanRankingPage() {
   return (
     <Suspense fallback={<DashboardLoading />}>
-      <WaliKelasImportNilaiContent />
+      <PengaturanRankingContent />
     </Suspense>
   );
 }
 
-async function WaliKelasImportNilaiContent() {
+async function PengaturanRankingContent() {
   const user = await requireUser();
 
-  // 1. Cari kelas binaan wali kelas (atau kelas pertama jika Admin)
+  // 1. Cari kelas binaan wali kelas
   let kelas = await prisma.kelas.findFirst({
     where: { waliKelasId: user.id },
   });
 
-  if (!kelas && (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN" || user.role === "SUPER_ADMIN")) {
+  if (
+    !kelas &&
+    (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN" || user.role === "SUPER_ADMIN")
+  ) {
     kelas = await prisma.kelas.findFirst({
       where: user.sekolahId ? { sekolahId: user.sekolahId } : undefined,
     });
@@ -54,7 +59,7 @@ async function WaliKelasImportNilaiContent() {
   const tahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
   const semester = periodeAktif?.semester || 1;
 
-  // 3. Ambil seluruh mata pelajaran yang diampu di kelas ini pada semester aktif
+  // 3. Ambil daftar pengampu mapel di kelas ini
   const pengampuList = await prisma.pengampu.findMany({
     where: {
       kelasId: kelas.id,
@@ -63,65 +68,62 @@ async function WaliKelasImportNilaiContent() {
     },
     include: {
       mapel: true,
-      guru: true,
+      guru: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
     orderBy: {
-      mapel: { kode: "asc" },
+      mapel: { nama: "asc" },
     },
   });
 
-  // 4. Ambil seluruh siswa di rombel ini
-  const siswaList = await prisma.siswa.findMany({
+  // 4. Ambil atau inisialisasi pengaturan penalti presensi kelas
+  const pengaturan = (prisma as any).pengaturanKelas
+    ? await prisma.pengaturanKelas.findUnique({
+        where: {
+          kelasId_tahunAjaran_semester: {
+            kelasId: kelas.id,
+            tahunAjaran,
+            semester,
+          },
+        },
+      })
+    : null;
+
+  const configData = {
+    penaltiAlpa: pengaturan?.penaltiAlpa ?? 1.0,
+    penaltiIzin: pengaturan?.penaltiIzin ?? 0.0,
+    penaltiSakit: pengaturan?.penaltiSakit ?? 0.0,
+    maxAlpaJuara: pengaturan?.maxAlpaJuara !== undefined ? pengaturan.maxAlpaJuara : 3,
+  };
+
+  // 5. Hitung jumlah siswa binaan untuk header
+  const totalSiswa = await prisma.siswa.count({
     where: { kelasId: kelas.id },
-    select: {
-      id: true,
-      nisn: true,
-      nis: true,
-      nama: true,
-      jenisKelamin: true,
-    },
-    orderBy: { nama: "asc" },
   });
-
-  // 5. Hitung jumlah siswa yang sudah memiliki nilai per mapel di kelas ini
-  const nilaiCounts = await prisma.nilai.groupBy({
-    by: ["mapelId"],
-    where: {
-      siswa: { kelasId: kelas.id },
-      tahunAjaran,
-      semester,
-      nilaiAkhir: { gt: 0 },
-    },
-    _count: {
-      siswaId: true,
-    },
-  });
-
-  const countMap = new Map<string, number>(
-    nilaiCounts.map((nc) => [nc.mapelId, nc._count.siswaId])
-  );
-
-  const mapelList = pengampuList.map((p) => ({
-    id: p.mapel.id,
-    kode: p.mapel.kode,
-    nama: p.mapel.nama,
-    guruNama: p.guru.name,
-    terisiCount: countMap.get(p.mapel.id) || 0,
-    totalSiswa: siswaList.length,
-    bobotTugas: p.bobotTugas ?? 30,
-    bobotUTS: p.bobotUTS ?? 30,
-    bobotUAS: p.bobotUAS ?? 40,
-  }));
 
   return (
-    <FormImportNilaiClient
+    <PengaturanRankingClient
       kelasId={kelas.id}
       kelasNama={kelas.nama}
       tingkat={kelas.tingkat}
       tahunAjaran={tahunAjaran}
       semester={semester}
-      mapelList={mapelList}
-      siswaList={siswaList}
+      pengampuList={pengampuList.map((p) => ({
+        id: p.id,
+        mapelId: p.mapelId,
+        mapelNama: p.mapel.nama,
+        mapelKode: p.mapel.kode,
+        guruNama: p.guru.name,
+        bobotTugas: p.bobotTugas,
+        bobotUTS: p.bobotUTS,
+        bobotUAS: p.bobotUAS,
+      }))}
+      initialConfig={configData}
+      totalSiswa={totalSiswa}
     />
   );
 }

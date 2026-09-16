@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createOrUpdateTPAction, deleteTPAction, bulkCreateTPAction } from "@/actions/tp";
 import { Trash2Icon } from "@/components/shared/icons";
@@ -59,6 +59,26 @@ const REKOMENDASI_TP: Record<string, { kode: string; deskripsi: string }[]> = {
   ],
 };
 
+function getNextKodeTP(list: TPItem[]): string {
+  if (!list || list.length === 0) return "TP 1";
+
+  const existingNumbers = new Set(
+    list
+      .map((tp) => {
+        const match = tp.kode.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      })
+      .filter((num) => num > 0)
+  );
+
+  let nextNum = 1;
+  while (existingNumbers.has(nextNum)) {
+    nextNum++;
+  }
+
+  return `TP ${nextNum}`;
+}
+
 export default function FormTP({
   options,
   activeOption,
@@ -71,8 +91,15 @@ export default function FormTP({
   const [deleteTarget, setDeleteTarget] = useState<TPItem | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [kode, setKode] = useState(`TP ${tpList.length + 1}`);
+  const [kode, setKode] = useState(() => getNextKodeTP(tpList));
   const [deskripsi, setDeskripsi] = useState("");
+
+  // Sinkronkan kode TP otomatis saat tpList berubah jika sedang tidak dalam mode edit
+  useEffect(() => {
+    if (!editingId) {
+      setKode(getNextKodeTP(tpList));
+    }
+  }, [tpList, editingId]);
 
   const handleSelectOption = (opt: MapelTingkatOption) => {
     setEditingId(null);
@@ -91,7 +118,7 @@ export default function FormTP({
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setKode(`TP ${tpList.length + 1}`);
+    setKode(getNextKodeTP(tpList));
     setDeskripsi("");
   };
 
@@ -104,9 +131,10 @@ export default function FormTP({
     }
 
     startTransition(async () => {
+      const currentKode = kode.trim();
       const res = await createOrUpdateTPAction({
         id: editingId || undefined,
-        kode: kode.trim(),
+        kode: currentKode,
         deskripsi: deskripsi.trim(),
         tingkat: activeOption.tingkat,
         semester: selectedSemester,
@@ -118,7 +146,11 @@ export default function FormTP({
         toast.success(res.message);
         setEditingId(null);
         setDeskripsi("");
-        setKode(`TP ${tpList.length + (editingId ? 1 : 2)}`);
+        if (editingId) {
+          setKode(getNextKodeTP(tpList));
+        } else {
+          setKode(getNextKodeTP([...tpList, { kode: currentKode } as TPItem]));
+        }
       } else {
         toast.error(res.message);
       }
@@ -171,7 +203,7 @@ export default function FormTP({
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-600 block">
-            Periode Perumusan TP:
+            Tujuan Pembelajaran
           </span>
           <div className="flex items-center gap-2 mt-1">
             <span className="font-mono font-bold text-zinc-900 text-base">
@@ -263,7 +295,7 @@ export default function FormTP({
         <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-zinc-900 font-poppins">
-              {activeOption.mapelNama} • Tingkat {activeOption.tingkat}
+              {activeOption.mapelNama}
             </h2>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200 font-mono">
               Fase {activeOption.tingkat <= 2 ? "A" : activeOption.tingkat <= 4 ? "B" : "C"}
@@ -272,7 +304,7 @@ export default function FormTP({
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <p className="text-xs text-zinc-600 sm:text-right">
-              Berlaku untuk rombel: <strong>Kelas {activeOption.kelasNamaList.join(", ")}</strong> • T.A. {selectedTahunAjaran} • Semester {selectedSemester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
+              Berlaku untuk rombel: <span className="font-bold text-black">Kelas {activeOption.kelasNamaList.join(", ") }</span>
             </p>
 
             {tpList.length === 0 && (

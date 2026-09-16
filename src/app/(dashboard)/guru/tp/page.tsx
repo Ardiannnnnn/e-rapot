@@ -134,25 +134,6 @@ async function GuruTPContent({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner Halaman */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#1b4332] to-[#143225] p-6 sm:p-8 text-white shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-medium backdrop-blur-sm font-mono">
-            Perencanaan Pembelajaran • Kurikulum Merdeka
-          </span>
-          <span className="inline-block px-3 py-1 rounded-full bg-purple-400/20 text-purple-100 text-xs font-bold backdrop-blur-sm border border-purple-300/30 font-mono">
-            T.A. {selectedTahunAjaran} • Semester {selectedSemester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
-          </span>
-        </div>
-        <h1 className="text-2xl font-bold font-poppins">
-          Tujuan Pembelajaran (TP)
-        </h1>
-        <p className="mt-1 text-sm text-emerald-100/90 max-w-2xl">
-          Rumuskan indikator ketercapaian kompetensi per fase dan bab materi untuk menentukan capaian pembelajaran siswa.
-        </p>
-      </div>
-
-      {/* Form Interaktif Manajemen TP */}
       <FormTP
         options={options}
         activeOption={activeOption}

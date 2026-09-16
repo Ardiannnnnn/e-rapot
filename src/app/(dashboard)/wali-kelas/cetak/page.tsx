@@ -189,37 +189,86 @@ async function CetakContent(props: {
   const waliKelasNama = kelas.waliKelas?.name || user.name;
   const waliKelasNip = (kelas.waliKelas as any)?.nip || (user as any)?.nip || null;
 
-  // 8. Hitung total nilai & alpa per siswa untuk menentukan peringkat di kelas secara adil
+  // 8. Ambil pengaturan penalti presensi untuk perankingan kelas
+  const pengaturan = (prisma as any).pengaturanKelas
+    ? await prisma.pengaturanKelas.findUnique({
+        where: {
+          kelasId_tahunAjaran_semester: {
+            kelasId: kelas.id,
+            tahunAjaran,
+            semester,
+          },
+        },
+      })
+    : null;
+
+  const penaltiAlpa = pengaturan?.penaltiAlpa ?? 1.0;
+  const penaltiIzin = pengaturan?.penaltiIzin ?? 0.0;
+  const penaltiSakit = pengaturan?.penaltiSakit ?? 0.0;
+  const maxAlpaJuara = pengaturan?.maxAlpaJuara !== undefined ? pengaturan.maxAlpaJuara : 3;
+
+  // 9. Hitung total nilai, rata-rata, dan penalti presensi untuk penentuan peringkat di kelas
   const totalPerSiswa = siswaList.map((s) => {
     let sum = 0;
+    let count = 0;
     pengampuList.forEach((pmp) => {
       const n = s.nilai.find((item) => item.mapelId === pmp.mapelId);
-      sum += n?.nilaiAkhir || 0;
-    });
-    const p = s.raporPelengkap[0];
-    const alpa = p?.alpa || 0;
-    return { id: s.id, total: sum, alpa };
-  });
-
-  // Urutkan siswa: Total nilai tertinggi lebih dulu, jika sama maka alpa paling sedikit
-  const sortedRanking = [...totalPerSiswa].sort((a, b) => {
-    if (b.total !== a.total) return b.total - a.total;
-    return a.alpa - b.alpa;
-  });
-
-  // Pemetaan Peringkat Standar Kompetisi Resmi (Jika nilai & alpa sama, menyandang juara kembar bersama)
-  const rankingMap = new Map<string, number>();
-  sortedRanking.forEach((item, idx) => {
-    if (idx === 0) {
-      rankingMap.set(item.id, 1);
-    } else {
-      const prev = sortedRanking[idx - 1];
-      if (item.total === prev.total && item.alpa === prev.alpa) {
-        rankingMap.set(item.id, rankingMap.get(prev.id)!);
-      } else {
-        rankingMap.set(item.id, idx + 1);
+      if (n && n.nilaiAkhir > 0) {
+        sum += n.nilaiAkhir;
+        count++;
       }
+    });
+    const rataRata = count > 0 ? sum / count : 0;
+    const p = s.raporPelengkap[0];
+    const a = p?.alpa || 0;
+    const i = p?.izin || 0;
+    const sk = p?.sakit || 0;
+    const penalti = a * penaltiAlpa + i * penaltiIzin + sk * penaltiSakit;
+    const roundedPenalti = Math.round(penalti * 10) / 10;
+    const skorAkhir = Math.max(0, Math.round((sum - roundedPenalti) * 10) / 10);
+    const isDisqualified = maxAlpaJuara !== null && maxAlpaJuara > 0 && a > maxAlpaJuara;
+
+    return { id: s.id, total: sum, rataRata, skorAkhir, alpa: a, izin: i, sakit: sk, isDisqualified };
+  });
+
+  // Urutkan siswa dengan skor ranking tertinggi
+  const eligibleRanking = totalPerSiswa.filter((s) => s.total > 0);
+  eligibleRanking.sort((a, b) => {
+    if (b.skorAkhir !== a.skorAkhir) return b.skorAkhir - a.skorAkhir;
+    if (a.alpa !== b.alpa) return a.alpa - b.alpa;
+    return a.izin + a.sakit - (b.izin + b.sakit);
+  });
+
+  const rankingMap = new Map<string, number>();
+  const topEligible: typeof eligibleRanking = [];
+  const disqualifiedList: typeof eligibleRanking = [];
+
+  eligibleRanking.forEach((item) => {
+    if (item.isDisqualified) {
+      disqualifiedList.push(item);
+    } else {
+      topEligible.push(item);
     }
+  });
+
+  const finalOrdered: typeof eligibleRanking = [];
+  if (disqualifiedList.length === 0) {
+    finalOrdered.push(...eligibleRanking);
+  } else {
+    const top3 = topEligible.slice(0, 3);
+    const remainingEligible = topEligible.slice(3);
+    finalOrdered.push(...top3);
+
+    const remainingAll = [...remainingEligible, ...disqualifiedList].sort((a, b) => {
+      if (b.skorAkhir !== a.skorAkhir) return b.skorAkhir - a.skorAkhir;
+      if (a.alpa !== b.alpa) return a.alpa - b.alpa;
+      return a.izin + a.sakit - (b.izin + b.sakit);
+    });
+    finalOrdered.push(...remainingAll);
+  }
+
+  finalOrdered.forEach((item, idx) => {
+    rankingMap.set(item.id, idx + 1);
   });
 
   // 9. Format data lembar rapor per siswa

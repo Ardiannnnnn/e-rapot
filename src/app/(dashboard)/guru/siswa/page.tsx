@@ -136,25 +136,6 @@ async function GuruSiswaContent({ searchParams }: GuruSiswaPageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner Halaman */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#1b4332] to-[#143225] p-6 sm:p-8 text-white shadow-xs">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-medium backdrop-blur-sm font-mono">
-            Penilaian Siswa • Kurikulum Merdeka
-          </span>
-          <span className="inline-block px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-100 text-xs font-bold backdrop-blur-sm border border-emerald-300/30 font-mono">
-            T.A. {selectedTahunAjaran} • Semester {selectedSemester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
-          </span>
-        </div>
-        <h1 className="text-2xl font-bold font-poppins">
-          Data Siswa & Input Nilai Mata Pelajaran
-        </h1>
-        <p className="mt-1 text-sm text-emerald-100/90 max-w-2xl">
-          Kelola data nilai sumatif (Tugas, UTS, UAS) dan ketercapaian Tujuan Pembelajaran (TP) untuk seluruh siswa pada rombongan belajar yang Anda ampu.
-        </p>
-      </div>
-
-      {/* Form Interaktif Input Nilai */}
       <FormInputNilai
         key={`${activePengampu.kelasId}-${activePengampu.mapelId}-${selectedTahunAjaran}-${selectedSemester}`}
         daftarPengampu={daftarPengampu}

@@ -27,6 +27,11 @@ export interface SiswaItem {
   nilai: NilaiItem[];
   presensi: SiswaPresensi | null;
   rataRata: number;
+  totalNilai: number;
+  peringkat?: number | null;
+  penaltiPresensi?: number;
+  skorAkhirRanking?: number;
+  isDisqualifiedJuara?: boolean;
   mapelDinilaiCount: number;
   totalMapel: number;
 }

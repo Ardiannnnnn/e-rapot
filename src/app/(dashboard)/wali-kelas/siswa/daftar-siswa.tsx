@@ -18,21 +18,39 @@ export default function DaftarSiswaClient({
   semester,
   siswaList,
 }: DaftarSiswaProps) {
+  const hasNilai = siswaList.some((s) => s.totalNilai > 0 || (s.peringkat !== null && s.peringkat !== undefined));
   const [search, setSearch] = useState("");
   const [genderFilter, setGenderFilter] = useState("ALL");
+  const [sortBy, setSortBy] = useState<"nama" | "peringkat" | "totalNilai">(() =>
+    hasNilai ? "peringkat" : "nama"
+  );
   const [selectedSiswa, setSelectedSiswa] = useState<SiswaItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const filteredList = siswaList.filter((s) => {
-    const matchSearch =
-      s.nama.toLowerCase().includes(search.toLowerCase()) ||
-      s.nisn.includes(search) ||
-      s.nis.includes(search);
-    const matchGender =
-      genderFilter === "ALL" || s.jenisKelamin === genderFilter;
-    return matchSearch && matchGender;
-  });
+  const filteredList = siswaList
+    .filter((s) => {
+      const matchSearch =
+        s.nama.toLowerCase().includes(search.toLowerCase()) ||
+        s.nisn.includes(search) ||
+        s.nis.includes(search);
+      const matchGender =
+        genderFilter === "ALL" || s.jenisKelamin === genderFilter;
+      return matchSearch && matchGender;
+    })
+    .sort((a, b) => {
+      if (sortBy === "peringkat") {
+        const rankA = a.peringkat ?? 9999;
+        const rankB = b.peringkat ?? 9999;
+        if (rankA !== rankB) return rankA - rankB;
+        return a.nama.localeCompare(b.nama);
+      }
+      if (sortBy === "totalNilai") {
+        if (b.totalNilai !== a.totalNilai) return b.totalNilai - a.totalNilai;
+        return a.nama.localeCompare(b.nama);
+      }
+      return a.nama.localeCompare(b.nama);
+    });
 
   const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -144,6 +162,22 @@ export default function DaftarSiswaClient({
               </button>
             </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-zinc-600">Urutkan:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as "nama" | "peringkat" | "totalNilai");
+                setCurrentPage(1);
+              }}
+              className="px-2.5 py-1 text-xs font-medium rounded-xl border border-stone-200 bg-stone-50 focus:outline-hidden focus:ring-2 focus:ring-[#1b4332]"
+            >
+              <option value="peringkat">🏆 Peringkat Kelas</option>
+              <option value="totalNilai">Total Nilai Tertinggi</option>
+              <option value="nama">Nama (A - Z)</option>
+            </select>
+          </div>
         </div>
 
         <TablePaginationInfo
@@ -167,7 +201,8 @@ export default function DaftarSiswaClient({
                 <th className="py-3.5 px-6">NISN / NIPD</th>
                 <th className="py-3.5 px-6 text-center">L/P</th>
                 <th className="py-3.5 px-6 text-center">Mapel Dinilai</th>
-                <th className="py-3.5 px-6 text-center">Rata-rata Nilai</th>
+                <th className="py-3.5 px-6 text-center">Total Nilai</th>
+                <th className="py-3.5 px-6 text-center">Peringkat</th>
                 <th className="py-3.5 px-6 text-center">Presensi (S/I/A)</th>
                 <th className="py-3.5 px-6 text-right">Aksi</th>
               </tr>
@@ -175,7 +210,7 @@ export default function DaftarSiswaClient({
             <tbody className="divide-y divide-stone-100">
               {paginatedList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-600 text-xs">
+                  <td colSpan={9} className="py-12 text-center text-zinc-600 text-xs">
                     Tidak ditemukan peserta didik yang sesuai kriteria pencarian.
                   </td>
                 </tr>
@@ -231,27 +266,96 @@ export default function DaftarSiswaClient({
                         </span>
                       </td>
                       <td className="py-3.5 px-6 text-center">
-                        {s.rataRata > 0 ? (
+                        {s.totalNilai > 0 ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="font-mono text-sm font-bold text-zinc-900">
+                              {Math.round(s.totalNilai * 10) / 10}
+                            </span>
+                            <span className="font-mono text-[10.5px] text-zinc-500">
+                              Rata: {s.rataRata.toFixed(1)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-zinc-400 font-mono">-</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-6 text-center">
+                        {s.peringkat ? (
                           <span
-                            className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
-                              s.rataRata >= 85
-                                ? "bg-emerald-100 text-emerald-900"
-                                : s.rataRata >= 75
-                                ? "bg-blue-100 text-blue-900"
-                                : "bg-amber-100 text-amber-900"
+                            className={`inline-flex items-center justify-center gap-1 font-mono text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                              s.peringkat === 1
+                                ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
+                                : s.peringkat === 2
+                                ? "bg-slate-200 text-slate-800 border border-slate-300 shadow-2xs"
+                                : s.peringkat === 3
+                                ? "bg-orange-100 text-orange-900 border border-orange-300 shadow-2xs"
+                                : "bg-stone-100 text-zinc-700 border border-stone-200"
                             }`}
                           >
-                            {s.rataRata.toFixed(1)}
+                            {s.peringkat === 1 && "🥇 Juara 1"}
+                            {s.peringkat === 2 && "🥈 Juara 2"}
+                            {s.peringkat === 3 && "🥉 Juara 3"}
+                            {s.peringkat > 3 && `Ke-${s.peringkat}`}
                           </span>
                         ) : (
-                          <span className="text-xs text-zinc-600 font-mono">-</span>
+                          <span className="text-xs text-zinc-400 font-mono">-</span>
                         )}
                       </td>
                       <td className="py-3.5 px-6 text-center">
                         {s.presensi ? (
-                          <span className="font-mono text-xs font-medium text-zinc-800 bg-stone-100 px-2 py-0.5 rounded">
-                            S:{s.presensi.sakit} • I:{s.presensi.izin} • A:{s.presensi.alpa}
-                          </span>
+                          (() => {
+                            const sk = s.presensi.sakit || 0;
+                            const iz = s.presensi.izin || 0;
+                            const al = s.presensi.alpa || 0;
+                            const hasAbsence = sk > 0 || iz > 0 || al > 0;
+
+                            if (!hasAbsence) {
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200"
+                                  title="Hadir Penuh (0 Sakit, 0 Izin, 0 Alpa)"
+                                >
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                  S:0 • I:0 • A:0
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <div className="inline-flex items-center gap-1 font-mono text-xs">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[11px] border ${
+                                    sk > 0
+                                      ? "bg-blue-100 text-blue-800 border-blue-300 font-bold shadow-2xs"
+                                      : "bg-stone-50 text-zinc-400 border-stone-200"
+                                  }`}
+                                  title={`Sakit: ${sk} hari`}
+                                >
+                                  S:{sk}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[11px] border ${
+                                    iz > 0
+                                      ? "bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-2xs"
+                                      : "bg-stone-50 text-zinc-400 border-stone-200"
+                                  }`}
+                                  title={`Izin: ${iz} hari`}
+                                >
+                                  I:{iz}
+                                </span>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[11px] border ${
+                                    al > 0
+                                      ? "bg-rose-100 text-rose-800 border-rose-300 font-extrabold ring-1 ring-rose-400/30 shadow-2xs"
+                                      : "bg-stone-50 text-zinc-400 border-stone-200"
+                                  }`}
+                                  title={`Alpa / Tanpa Keterangan: ${al} hari`}
+                                >
+                                  A:{al}
+                                </span>
+                              </div>
+                            );
+                          })()
                         ) : (
                           <span className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                             Belum diisi
@@ -310,14 +414,32 @@ export default function DaftarSiswaClient({
 
             <div className="p-6 space-y-6">
               {/* Ringkasan Nilai Siswa */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200">
                   <span className="text-[11px] uppercase tracking-wider text-zinc-600 font-medium block">
-                    Rata-rata Nilai
+                    Peringkat Kelas
+                  </span>
+                  <p className="mt-1 text-2xl font-bold font-mono text-amber-700">
+                    {selectedSiswa.peringkat ? (
+                      selectedSiswa.peringkat <= 3
+                        ? `Juara ${selectedSiswa.peringkat}`
+                        : `Ke-${selectedSiswa.peringkat}`
+                    ) : (
+                      "-"
+                    )}
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[11px] uppercase tracking-wider text-zinc-600 font-medium block">
+                    Total Nilai
                   </span>
                   <p className="mt-1 text-2xl font-bold font-mono text-emerald-800">
-                    {selectedSiswa.rataRata > 0 ? selectedSiswa.rataRata.toFixed(1) : "-"}
+                    {selectedSiswa.totalNilai > 0 ? (Math.round(selectedSiswa.totalNilai * 10) / 10).toFixed(1) : "-"}
                   </p>
+                  <span className="text-[10px] text-zinc-500 font-mono">
+                    Rata: {selectedSiswa.rataRata > 0 ? selectedSiswa.rataRata.toFixed(1) : "-"}
+                  </span>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200">
@@ -333,11 +455,64 @@ export default function DaftarSiswaClient({
                   <span className="text-[11px] uppercase tracking-wider text-zinc-600 font-medium block">
                     Ketidakhadiran
                   </span>
-                  <p className="mt-1 text-base font-bold font-mono text-zinc-800">
-                    S:{selectedSiswa.presensi?.sakit || 0} I:{selectedSiswa.presensi?.izin || 0} A:{selectedSiswa.presensi?.alpa || 0}
-                  </p>
+                  <div className="mt-1 flex items-center gap-1 font-mono text-xs font-bold">
+                    <span
+                      className={`px-1.5 py-0.5 rounded border ${
+                        (selectedSiswa.presensi?.sakit || 0) > 0
+                          ? "bg-blue-100 text-blue-800 border-blue-300 shadow-2xs"
+                          : "bg-white text-zinc-400 border-stone-200"
+                      }`}
+                      title={`Sakit: ${selectedSiswa.presensi?.sakit || 0} hari`}
+                    >
+                      S:{selectedSiswa.presensi?.sakit || 0}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded border ${
+                        (selectedSiswa.presensi?.izin || 0) > 0
+                          ? "bg-amber-100 text-amber-900 border-amber-300 shadow-2xs"
+                          : "bg-white text-zinc-400 border-stone-200"
+                      }`}
+                      title={`Izin: ${selectedSiswa.presensi?.izin || 0} hari`}
+                    >
+                      I:{selectedSiswa.presensi?.izin || 0}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded border ${
+                        (selectedSiswa.presensi?.alpa || 0) > 0
+                          ? "bg-rose-100 text-rose-800 border-rose-300 font-extrabold shadow-2xs"
+                          : "bg-white text-zinc-400 border-stone-200"
+                      }`}
+                      title={`Alpa: ${selectedSiswa.presensi?.alpa || 0} hari`}
+                    >
+                      A:{selectedSiswa.presensi?.alpa || 0}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Rincian Transparansi Penalti Presensi */}
+              {selectedSiswa.penaltiPresensi !== undefined && selectedSiswa.penaltiPresensi > 0 && (
+                <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">⚖️</span>
+                    <span>
+                      Total Nilai: <strong>{selectedSiswa.totalNilai}</strong> • Penalti Presensi: <strong className="text-rose-600">-{selectedSiswa.penaltiPresensi}</strong> (Alpa: {selectedSiswa.presensi?.alpa || 0}, Izin: {selectedSiswa.presensi?.izin || 0}, Sakit: {selectedSiswa.presensi?.sakit || 0})
+                    </span>
+                  </div>
+                  <span className="font-bold font-mono text-emerald-800 bg-white px-3 py-1 rounded-lg border border-amber-200 whitespace-nowrap shadow-2xs">
+                    Skor Juara: {selectedSiswa.skorAkhirRanking !== undefined ? Math.round(selectedSiswa.skorAkhirRanking * 10) / 10 : "-"}
+                  </span>
+                </div>
+              )}
+
+              {selectedSiswa.isDisqualifiedJuara && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2 shadow-2xs">
+                  <span>🚫</span>
+                  <span>
+                    Siswa tidak memenuhi syarat masuk 3 Besar (Juara 1, 2, atau 3) karena jumlah Alpa ({selectedSiswa.presensi?.alpa || 0} hari) melebihi batas toleransi juara.
+                  </span>
+                </div>
+              )}
 
               {/* Tabel Komponen Nilai Per Mapel */}
               <div>
@@ -391,6 +566,18 @@ export default function DaftarSiswaClient({
                         ))
                       )}
                     </tbody>
+                    {selectedSiswa.nilai.length > 0 && (
+                      <tfoot className="bg-stone-50 border-t border-stone-200 font-bold">
+                        <tr>
+                          <td colSpan={4} className="py-2.5 px-4 text-zinc-800 text-right">
+                            Total Nilai Seluruh Mapel:
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-mono text-emerald-900 text-sm">
+                            {Math.round(selectedSiswa.totalNilai * 10) / 10}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               </div>

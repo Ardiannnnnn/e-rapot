@@ -98,6 +98,8 @@ export async function simpanNilaiBatchAction(payload: {
 
     revalidatePath("/guru/siswa");
     revalidatePath("/guru");
+    revalidatePath("/wali-kelas/siswa");
+    revalidatePath("/wali-kelas/cetak");
 
     return {
       success: true,
