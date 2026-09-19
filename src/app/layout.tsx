@@ -7,7 +7,11 @@ export const metadata: Metadata = {
   title: "NilaiKu | Platform Rapor & Penilaian Digital",
   description: "Platform all-in-one pengelolaan nilai dan pencetakan rapor digital fleksibel untuk sekolah",
   icons: {
-    icon: "/logo.webp",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
   },
 };
 
