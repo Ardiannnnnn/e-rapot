@@ -21,7 +21,9 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   if (!payload) return null;
 
   // 2. Ambil data user terkini dari database berdasarkan userId terverifikasi
-  console.log(`\x1b[36mℹ️  [DB HIT - USER SESSION]\x1b[0m Query database dieksekusi untuk: ${payload.email}`);
+  if (process.env.NODE_ENV === "development") {
+    console.log(`\x1b[36mℹ️  [DB HIT - USER SESSION]\x1b[0m Query database dieksekusi untuk: ${payload.email}`);
+  }
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
     include: {
@@ -61,6 +63,23 @@ export async function requireRole(allowedRoles: string[]): Promise<SessionUser> 
     } else {
       redirect("/login");
     }
+  }
+
+  return user;
+}
+
+/**
+ * Memastikan user login dan memiliki wewenang role untuk Server Action.
+ * Melempar Error terstruktur (tanpa redirect HTTP) agar dapat ditangani oleh RPC/AJAX response.
+ */
+export async function requireActionUser(allowedRoles?: string[]): Promise<SessionUser> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new Error("Sesi login Anda telah berakhir. Silakan login kembali.");
+  }
+
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    throw new Error("Akses ditolak: Anda tidak memiliki wewenang untuk melakukan aksi ini.");
   }
 
   return user;

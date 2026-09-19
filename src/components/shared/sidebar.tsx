@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/actions/auth";
 import { SessionUser, MenuItem, MenuGroup, Role } from "@/types";
@@ -238,15 +239,21 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
       {/* Mobile Bar */}
       <div className="lg:hidden print:hidden sticky top-0 z-40 flex items-center justify-between bg-[#fcfbf9] border-b border-stone-200 px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-[#1b4332] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-xs">
-            ER
+          <div className="h-8 w-8 rounded-xl overflow-hidden shadow-xs border border-stone-200/80 bg-[#1b4332] flex items-center justify-center shrink-0">
+            <Image
+              src="/logo.webp"
+              alt="Logo NilaiKu"
+              width={32}
+              height={32}
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
-            <span className="font-semibold text-sm tracking-tight text-zinc-900 block leading-tight font-mono">
-              E-Rapor SD
+            <span className="font-bold text-sm tracking-tight text-zinc-900 block leading-tight font-poppins">
+              NilaiKu
             </span>
             <span className="text-[10px] text-zinc-500 block leading-tight">
-              Kurikulum Merdeka
+              Kurikulum Merdeka & K13
             </span>
           </div>
         </div>
@@ -280,20 +287,26 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
           <div className="p-5 border-b border-stone-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#1b4332] to-[#143225] text-white flex items-center justify-center font-bold text-sm tracking-wider shadow-xs">
-                  ER
+                <div className="h-9 w-9 rounded-xl overflow-hidden shadow-xs border border-stone-200/80 bg-[#1b4332] flex items-center justify-center shrink-0">
+                  <Image
+                    src="/logo.webp"
+                    alt="Logo NilaiKu"
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h1 className="font-bold text-sm text-zinc-900 tracking-tight font-poppins">
-                      E-Rapor SD
+                      NilaiKu
                     </h1>
                     <span className="rounded px-1.5 py-0.5 text-[9px] font-semibold bg-emerald-100 text-[#1b4332] uppercase">
                       v1.0
                     </span>
                   </div>
                   <p className="text-[11px] text-zinc-500 font-sans">
-                    Kurikulum Merdeka
+                    Sistem Rapor Digital
                   </p>
                 </div>
               </div>

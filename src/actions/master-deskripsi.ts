@@ -190,6 +190,20 @@ export async function tambahTemplateAction(input: {
       return { success: false, message: "Akses ditolak." };
     }
 
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: input.kelasId },
+      select: { waliKelasId: true, sekolahId: true },
+    });
+    if (!targetKelas) {
+      return { success: false, message: "Kelas tidak ditemukan." };
+    }
+    if (user.sekolahId && targetKelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Rombel di luar wewenang sekolah Anda." };
+    }
+    if (user.role === "WALI_KELAS" && targetKelas.waliKelasId !== user.id) {
+      return { success: false, message: "Akses ditolak: Anda bukan wali kelas rombel ini." };
+    }
+
     const cleanTeks = sanitizeInput(input.teks, 1000);
     if (!cleanTeks) {
       return { success: false, message: "Teks template tidak boleh kosong." };
@@ -242,6 +256,20 @@ export async function updateTemplateAction(id: string, teks: string, judul?: str
       return { success: false, message: "Akses ditolak." };
     }
 
+    const existing = await prisma.templateRapor.findUnique({
+      where: { id },
+      include: { kelas: true },
+    });
+    if (!existing) {
+      return { success: false, message: "Template tidak ditemukan." };
+    }
+    if (user.sekolahId && existing.kelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Di luar wewenang sekolah Anda." };
+    }
+    if (user.role === "WALI_KELAS" && existing.kelas.waliKelasId !== user.id) {
+      return { success: false, message: "Akses ditolak: Anda bukan wali kelas rombel ini." };
+    }
+
     const cleanTeks = sanitizeInput(teks, 1000);
     if (!cleanTeks) {
       return { success: false, message: "Teks template tidak boleh kosong." };
@@ -278,6 +306,20 @@ export async function hapusTemplateAction(id: string) {
       return { success: false, message: "Akses ditolak." };
     }
 
+    const existing = await prisma.templateRapor.findUnique({
+      where: { id },
+      include: { kelas: true },
+    });
+    if (!existing) {
+      return { success: false, message: "Template tidak ditemukan." };
+    }
+    if (user.sekolahId && existing.kelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Di luar wewenang sekolah Anda." };
+    }
+    if (user.role === "WALI_KELAS" && existing.kelas.waliKelasId !== user.id) {
+      return { success: false, message: "Akses ditolak: Anda bukan wali kelas rombel ini." };
+    }
+
     await prisma.templateRapor.delete({
       where: { id },
     });
@@ -303,6 +345,20 @@ export async function resetDefaultTemplateAction(kelasId: string, tahunAjaran: s
       user.role !== "SUPER_ADMIN"
     ) {
       return { success: false, message: "Akses ditolak." };
+    }
+
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      select: { waliKelasId: true, sekolahId: true },
+    });
+    if (!targetKelas) {
+      return { success: false, message: "Kelas tidak ditemukan." };
+    }
+    if (user.sekolahId && targetKelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Di luar wewenang sekolah Anda." };
+    }
+    if (user.role === "WALI_KELAS" && targetKelas.waliKelasId !== user.id) {
+      return { success: false, message: "Akses ditolak: Anda bukan wali kelas rombel ini." };
     }
 
     // Hapus yang lama

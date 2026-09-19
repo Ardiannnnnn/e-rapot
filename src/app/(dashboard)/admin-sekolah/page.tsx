@@ -15,11 +15,23 @@ export default function AdminDashboardPage() {
 async function AdminDashboardContent() {
   const user = await requireRole(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
+  const sekolahCondition = user.sekolahId ? { sekolahId: user.sekolahId } : undefined;
+  const siswaSekolahCondition = user.sekolahId ? { kelas: { sekolahId: user.sekolahId } } : undefined;
+
   const [totalSiswa, totalKelas, totalMapel, totalGuru, periodeAktif] = await Promise.all([
-    prisma.siswa.count(),
-    prisma.kelas.count(),
-    prisma.mataPelajaran.count(),
-    prisma.user.count({ where: { role: { in: ["GURU", "WALI_KELAS"] } } }),
+    prisma.siswa.count({ where: siswaSekolahCondition }),
+    prisma.kelas.count({ where: sekolahCondition }),
+    prisma.mataPelajaran.count({
+      where: user.role === "SUPER_ADMIN" ? {} : {
+        OR: [{ sekolahId: user.sekolahId }, { sekolahId: null }],
+      },
+    }),
+    prisma.user.count({
+      where: {
+        role: { in: ["GURU", "WALI_KELAS"] },
+        ...(user.sekolahId ? { sekolahId: user.sekolahId } : {}),
+      },
+    }),
     prisma.periodeAkademik.findFirst({
       where: {
         sekolahId: user.sekolahId || undefined,

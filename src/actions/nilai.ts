@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireActionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export interface NilaiInputItem {
@@ -19,7 +19,7 @@ export async function simpanNilaiBatchAction(payload: {
   semester: number;
   items: NilaiInputItem[];
 }) {
-  const user = await requireUser();
+  const user = await requireActionUser(["GURU", "WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   const { mapelId, tahunAjaran, semester, items } = payload;
 
@@ -43,12 +43,65 @@ export async function simpanNilaiBatchAction(payload: {
   }
 
   try {
-    // Cek apakah periode akademik sedang dikunci oleh Admin Sekolah
-    if (user.sekolahId) {
+    // 1. Verifikasi kepemilikan siswa dan rombel kelas
+    const sampleSiswa = await prisma.siswa.findUnique({
+      where: { id: items[0].siswaId },
+      include: { kelas: true },
+    });
+
+    if (!sampleSiswa) {
+      return { success: false, message: "Data siswa sasaran tidak ditemukan." };
+    }
+
+    const kelasId = sampleSiswa.kelasId;
+    const targetSekolahId = sampleSiswa.kelas.sekolahId;
+
+    // Tenant check
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && targetSekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Data siswa bukan milik sekolah Anda." };
+    }
+
+    // 2. Jika user adalah GURU atau WALI_KELAS, pastikan ia terdaftar sebagai pengampu rombel & mapel ini
+    if (user.role === "GURU" || user.role === "WALI_KELAS") {
+      const isPengampu = await prisma.pengampu.findFirst({
+        where: {
+          guruId: user.id,
+          kelasId,
+          mapelId,
+          tahunAjaran,
+        },
+      });
+
+      if (!isPengampu) {
+        return {
+          success: false,
+          message: "Akses ditolak: Anda tidak memiliki wewenang penugasan mengajar mata pelajaran ini di rombel tersebut.",
+        };
+      }
+    }
+
+    // 3. Pastikan seluruh siswa dalam batch berada dalam rombel yang sama
+    const validCount = await prisma.siswa.count({
+      where: {
+        id: { in: items.map((i) => i.siswaId) },
+        kelasId,
+      },
+    });
+
+    if (validCount !== items.length) {
+      return {
+        success: false,
+        message: "Akses ditolak: Sebagian siswa tidak valid atau tidak terdaftar pada rombel yang sama.",
+      };
+    }
+
+    // 4. Cek apakah periode akademik sedang dikunci oleh Admin Sekolah
+    const effectiveSekolahId = user.sekolahId || targetSekolahId;
+    if (effectiveSekolahId) {
       const periode = await prisma.periodeAkademik.findUnique({
         where: {
           sekolahId_tahunAjaran_semester: {
-            sekolahId: user.sekolahId,
+            sekolahId: effectiveSekolahId,
             tahunAjaran: tahunAjaran,
             semester: Number(semester),
           },

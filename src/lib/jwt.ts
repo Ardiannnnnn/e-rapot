@@ -9,9 +9,18 @@ export interface AuthJWTPayload {
 
 const DEFAULT_SECRET = "45271641b48f3520bfc38ce3b81b782e767d45d90109641aca886c4c7109c917";
 
-function getSecretKey(): Uint8Array {
-  const secret = process.env.AUTH_SECRET || DEFAULT_SECRET;
-  return new TextEncoder().encode(secret);
+export function getSecretKey(): Uint8Array {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret || secret === DEFAULT_SECRET) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("FATAL: AUTH_SECRET wajib disetel dengan kunci rahasia unik (bukan default) pada environment production!");
+    }
+    // Di dev / test, izinkan fallback dengan peringatan satu kali
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("⚠️  [SECURITY WARNING] AUTH_SECRET belum disetel unik di .env! Menggunakan default secret sementara (TIDAK AMAN UNTUK PRODUCTION).");
+    }
+  }
+  return new TextEncoder().encode(secret || DEFAULT_SECRET);
 }
 
 /**

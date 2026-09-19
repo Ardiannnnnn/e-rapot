@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { loginAction } from "@/actions/auth";
 
 interface LoginModalProps {
@@ -57,7 +58,21 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       >
         {/* Header Modal */}
         <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-          <h2 className="text-xl font-bold text-gray-900 font-poppins">Masuk ke Akun</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl overflow-hidden shadow-xs border border-stone-200 bg-[#1b4332] flex items-center justify-center shrink-0">
+              <Image
+                src="/logo.webp"
+                alt="Logo NilaiKu"
+                width={32}
+                height={32}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900 font-poppins leading-none">Masuk ke NilaiKu</h2>
+              <p className="text-[11px] text-zinc-500 mt-1">Portal Rapor & Penilaian Digital</p>
+            </div>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-stone-100"

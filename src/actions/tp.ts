@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireActionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function createOrUpdateTPAction(formData: {
@@ -13,7 +13,7 @@ export async function createOrUpdateTPAction(formData: {
   tahunAjaran: string;
   mapelId: string;
 }) {
-  const user = await requireUser();
+  const user = await requireActionUser(["GURU", "WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   const { id, kode, deskripsi, tingkat, semester, tahunAjaran, mapelId } = formData;
 
@@ -23,6 +23,25 @@ export async function createOrUpdateTPAction(formData: {
 
   try {
     if (id) {
+      const existing = await prisma.tujuanPembelajaran.findUnique({
+        where: { id },
+        include: { guru: true },
+      });
+
+      if (!existing) {
+        return { success: false, message: "Tujuan Pembelajaran tidak ditemukan." };
+      }
+
+      const isSuperAdmin = user.role === "SUPER_ADMIN";
+      const isAdminSekolah =
+        (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN") &&
+        (!user.sekolahId || existing.guru.sekolahId === user.sekolahId);
+      const isOwner = existing.guruId === user.id;
+
+      if (!isSuperAdmin && !isAdminSekolah && !isOwner) {
+        return { success: false, message: "Akses ditolak: Anda tidak memiliki wewenang untuk mengubah TP ini." };
+      }
+
       await prisma.tujuanPembelajaran.update({
         where: { id },
         data: {
@@ -57,13 +76,32 @@ export async function createOrUpdateTPAction(formData: {
 }
 
 export async function deleteTPAction(id: string) {
-  await requireUser();
+  const user = await requireActionUser(["GURU", "WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   if (!id) {
     return { success: false, message: "ID TP tidak ditemukan." };
   }
 
   try {
+    const existing = await prisma.tujuanPembelajaran.findUnique({
+      where: { id },
+      include: { guru: true },
+    });
+
+    if (!existing) {
+      return { success: false, message: "Tujuan Pembelajaran tidak ditemukan." };
+    }
+
+    const isSuperAdmin = user.role === "SUPER_ADMIN";
+    const isAdminSekolah =
+      (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN") &&
+      (!user.sekolahId || existing.guru.sekolahId === user.sekolahId);
+    const isOwner = existing.guruId === user.id;
+
+    if (!isSuperAdmin && !isAdminSekolah && !isOwner) {
+      return { success: false, message: "Akses ditolak: Anda tidak memiliki wewenang untuk menghapus TP ini." };
+    }
+
     await prisma.tujuanPembelajaran.delete({
       where: { id },
     });
@@ -83,7 +121,7 @@ export async function bulkCreateTPAction(payload: {
   tahunAjaran: string;
   items: { kode: string; deskripsi: string }[];
 }) {
-  const user = await requireUser();
+  const user = await requireActionUser(["GURU", "WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   const { mapelId, tingkat, semester, tahunAjaran, items } = payload;
 

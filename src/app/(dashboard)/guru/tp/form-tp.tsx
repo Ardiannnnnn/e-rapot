@@ -194,7 +194,7 @@ export default function FormTP({
     });
   };
 
-  // Validasi huruf kecil di awal kalimat (panduan resmi e-rapor)
+  // Validasi huruf kecil di awal kalimat (panduan resmi rapor NilaiKu)
   const isFirstLetterCapital = deskripsi.length > 0 && deskripsi[0] === deskripsi[0].toUpperCase() && deskripsi[0] !== deskripsi[0].toLowerCase();
 
   return (

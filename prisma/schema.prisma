@@ -30,6 +30,7 @@ model Sekolah {
   users         User[]
   kelas         Kelas[]
   periodeAkademik PeriodeAkademik[]
+  mataPelajaran MataPelajaran[]
 }
 
 model User {
@@ -56,7 +57,7 @@ model User {
 
 model Kelas {
   id          String   @id @default(uuid())
-  nama        String   @unique // Contoh: "7A", "8B"
+  nama        String   // Contoh: "7A", "8B"
   tingkat     Int      // Contoh: 7, 8, 9
   tahunAjaran String   // Contoh: "2025/2026"
   createdAt   DateTime @default(now())
@@ -74,12 +75,14 @@ model Kelas {
   pengampu    Pengampu[]
   templates   TemplateRapor[]
   pengaturan  PengaturanKelas[]
+
+  @@unique([sekolahId, nama])
 }
 
 model Siswa {
   id           String   @id @default(uuid())
   nisn         String   @unique
-  nis          String   @unique
+  nis          String   // Nomor Induk Siswa lokal per-sekolah
   nama         String
   jenisKelamin String   // "L" / "P"
   nik          String?  // NIK Kependudukan (16 digit)
@@ -95,20 +98,29 @@ model Siswa {
 
   nilai Nilai[]
   raporPelengkap RaporPelengkap[]
+
+  @@index([nis])
+  @@index([kelasId])
 }
 
 model MataPelajaran {
   id        String   @id @default(uuid())
-  kode      String   @unique // Contoh: "MAT", "IPA"
+  kode      String   // Contoh: "MAT", "IPA"
   nama      String   // Contoh: "Matematika"
   isMulok   Boolean  @default(false)
   isSeni    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  sekolahId String?
+  sekolah   Sekolah? @relation(fields: [sekolahId], references: [id], onDelete: Cascade)
+
   nilai              Nilai[]
   pengampu           Pengampu[]
   tujuanPembelajaran TujuanPembelajaran[]
+
+  @@unique([sekolahId, kode])
+  @@index([sekolahId])
 }
 
 model Nilai {

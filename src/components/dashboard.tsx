@@ -5,9 +5,17 @@ export default async function DashboardPage() {
   const user = await requireUser();
 
   const [totalSiswa, totalKelas, totalMapel] = await Promise.all([
-    prisma.siswa.count(),
-    prisma.kelas.count(),
-    prisma.mataPelajaran.count(),
+    prisma.siswa.count({
+      where: user.role === "SUPER_ADMIN" ? {} : (user.sekolahId ? { kelas: { sekolahId: user.sekolahId } } : {}),
+    }),
+    prisma.kelas.count({
+      where: user.role === "SUPER_ADMIN" ? {} : (user.sekolahId ? { sekolahId: user.sekolahId } : {}),
+    }),
+    prisma.mataPelajaran.count({
+      where: user.role === "SUPER_ADMIN" ? {} : {
+        OR: [{ sekolahId: user.sekolahId }, { sekolahId: null }],
+      },
+    }),
   ]);
 
   return (
@@ -117,7 +125,7 @@ export default async function DashboardPage() {
               Cetak Rapor Siswa
             </h4>
             <p className="mt-1 text-xs text-zinc-600">
-              Generate rekapitulasi nilai dan lembar raport PDF.
+              Generate rekapitulasi nilai dan lembar rapor PDF.
             </p>
           </a>
         )}

@@ -1,9 +1,30 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireActionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { sanitizeInput } from "@/lib/sanitize";
+
+async function validateWaliKelasSiswaAccess(user: any, siswaIds: string[]) {
+  if (user.role === "SUPER_ADMIN") return { valid: true };
+  if (!siswaIds.length) return { valid: true };
+
+  const siswaList = await prisma.siswa.findMany({
+    where: { id: { in: siswaIds } },
+    include: { kelas: true },
+  });
+
+  for (const s of siswaList) {
+    if (user.role === "WALI_KELAS") {
+      if (s.kelas.waliKelasId !== user.id) {
+        return { valid: false, message: `Akses ditolak: Siswa '${s.nama}' bukan berada di rombel perwalian Anda.` };
+      }
+    } else if (user.sekolahId && s.kelas.sekolahId !== user.sekolahId) {
+      return { valid: false, message: `Akses ditolak: Siswa '${s.nama}' bukan bagian dari sekolah Anda.` };
+    }
+  }
+  return { valid: true };
+}
 
 export interface EkskulItem {
   nama: string;
@@ -32,17 +53,11 @@ export interface SimpanPelengkapInput {
 
 export async function simpanPelengkapAction(input: SimpanPelengkapInput) {
   try {
-    const user = await requireUser();
-    if (
-      user.role !== "WALI_KELAS" &&
-      user.role !== "ADMIN_SEKOLAH" &&
-      user.role !== "ADMIN" &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      return {
-        success: false,
-        message: "Akses ditolak: Hanya Wali Kelas atau Admin yang berhak mengubah data ini.",
-      };
+    const user = await requireActionUser(["WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+
+    const access = await validateWaliKelasSiswaAccess(user, [input.siswaId]);
+    if (!access.valid) {
+      return { success: false, message: access.message || "Akses ditolak." };
     }
 
     const cleanCatatan = input.catatanWali ? sanitizeInput(input.catatanWali, 1000) : null;
@@ -129,14 +144,11 @@ export async function simpanBulkPresensiAction(input: {
   items: BulkPresensiItem[];
 }) {
   try {
-    const user = await requireUser();
-    if (
-      user.role !== "WALI_KELAS" &&
-      user.role !== "ADMIN_SEKOLAH" &&
-      user.role !== "ADMIN" &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      return { success: false, message: "Akses ditolak." };
+    const user = await requireActionUser(["WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+
+    const access = await validateWaliKelasSiswaAccess(user, input.items.map((i) => i.siswaId));
+    if (!access.valid) {
+      return { success: false, message: access.message || "Akses ditolak." };
     }
 
     await prisma.$transaction(
@@ -191,14 +203,11 @@ export async function simpanBulkKokurikulerAction(input: {
   }[];
 }) {
   try {
-    const user = await requireUser();
-    if (
-      user.role !== "WALI_KELAS" &&
-      user.role !== "ADMIN_SEKOLAH" &&
-      user.role !== "ADMIN" &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      return { success: false, message: "Akses ditolak." };
+    const user = await requireActionUser(["WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+
+    const access = await validateWaliKelasSiswaAccess(user, input.items.map((i) => i.siswaId));
+    if (!access.valid) {
+      return { success: false, message: access.message || "Akses ditolak." };
     }
 
     await prisma.$transaction(
@@ -250,14 +259,11 @@ export async function simpanBulkEkskulAction(input: {
   }[];
 }) {
   try {
-    const user = await requireUser();
-    if (
-      user.role !== "WALI_KELAS" &&
-      user.role !== "ADMIN_SEKOLAH" &&
-      user.role !== "ADMIN" &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      return { success: false, message: "Akses ditolak." };
+    const user = await requireActionUser(["WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+
+    const access = await validateWaliKelasSiswaAccess(user, input.items.map((i) => i.siswaId));
+    if (!access.valid) {
+      return { success: false, message: access.message || "Akses ditolak." };
     }
 
     await prisma.$transaction(
@@ -304,14 +310,11 @@ export async function simpanBulkKebiasaanAction(input: {
   }[];
 }) {
   try {
-    const user = await requireUser();
-    if (
-      user.role !== "WALI_KELAS" &&
-      user.role !== "ADMIN_SEKOLAH" &&
-      user.role !== "ADMIN" &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      return { success: false, message: "Akses ditolak." };
+    const user = await requireActionUser(["WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+
+    const access = await validateWaliKelasSiswaAccess(user, input.items.map((i) => i.siswaId));
+    if (!access.valid) {
+      return { success: false, message: access.message || "Akses ditolak." };
     }
 
     await prisma.$transaction(
@@ -358,14 +361,11 @@ export async function simpanBulkKenaikanAction(input: {
   }[];
 }) {
   try {
-    const user = await requireUser();
-    if (
-      user.role !== "WALI_KELAS" &&
-      user.role !== "ADMIN_SEKOLAH" &&
-      user.role !== "ADMIN" &&
-      user.role !== "SUPER_ADMIN"
-    ) {
-      return { success: false, message: "Akses ditolak." };
+    const user = await requireActionUser(["WALI_KELAS", "ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+
+    const access = await validateWaliKelasSiswaAccess(user, input.items.map((i) => i.siswaId));
+    if (!access.valid) {
+      return { success: false, message: access.message || "Akses ditolak." };
     }
 
     await prisma.$transaction(

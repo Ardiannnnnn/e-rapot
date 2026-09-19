@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import FormSiswa from "./form-siswa";
 import { SiswaRecord } from "@/types/admin-sekolah";
 
@@ -14,10 +14,11 @@ export default function AdminSiswaPage() {
 }
 
 async function AdminSiswaContent() {
-  await requireUser();
+  const user = await requireRole(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
-  // Ambil seluruh siswa dengan relasi kelas
+  // Ambil seluruh siswa dengan relasi kelas milik sekolah yang sedang aktif
   const rawSiswaList = await prisma.siswa.findMany({
+    where: user.sekolahId ? { kelas: { sekolahId: user.sekolahId } } : undefined,
     include: {
       kelas: {
         select: {
@@ -49,8 +50,9 @@ async function AdminSiswaContent() {
     kelas: s.kelas,
   }));
 
-  // Ambil daftar kelas untuk filter dan form
+  // Ambil daftar kelas sekolah ini untuk filter dan form
   const kelasList = await prisma.kelas.findMany({
+    where: user.sekolahId ? { sekolahId: user.sekolahId } : undefined,
     select: {
       id: true,
       nama: true,

@@ -283,7 +283,7 @@ export default function FormProfilSekolah({ sekolah }: { sekolah: ProfilSekolahD
           </div>
 
           <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-blue-800 leading-relaxed">
-            ℹ️ Informasi di atas akan langsung disinkronkan ke seluruh pencetakan e-Rapor dan dokumen kelulusan siswa.
+            ℹ️ Informasi di atas akan langsung disinkronkan ke seluruh pencetakan rapor NilaiKu dan dokumen kelulusan siswa.
           </div>
         </div>
       </div>

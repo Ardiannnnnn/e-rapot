@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import FormKelas from "./form-kelas";
 import { KelasItem, GuruOption } from "@/types/admin-sekolah";
 
@@ -14,7 +14,7 @@ export default function AdminKelasPage() {
 }
 
 async function AdminKelasContent() {
-  const user = await requireUser();
+  const user = await requireRole(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   // Ambil periode aktif untuk default tahun ajaran
   const periodeAktif = await prisma.periodeAkademik.findFirst({
@@ -26,8 +26,9 @@ async function AdminKelasContent() {
 
   const tahunAjaranAktif = periodeAktif?.tahunAjaran || "2026/2027";
 
-  // Ambil data rombel kelas
+  // Ambil data rombel kelas milik sekolah yang sedang aktif
   const rawKelasList = await prisma.kelas.findMany({
+    where: user.sekolahId ? { sekolahId: user.sekolahId } : undefined,
     include: {
       waliKelas: {
         select: {
@@ -59,12 +60,13 @@ async function AdminKelasContent() {
     waliKelas: k.waliKelas,
   }));
 
-  // Ambil data guru untuk opsi dropdown Wali Kelas
+  // Ambil data guru sekolah ini untuk opsi dropdown Wali Kelas
   const rawGuruList = await prisma.user.findMany({
     where: {
       role: {
         in: ["GURU", "WALI_KELAS"],
       },
+      ...(user.sekolahId ? { sekolahId: user.sekolahId } : {}),
     },
     select: {
       id: true,
@@ -91,6 +93,9 @@ async function AdminKelasContent() {
 
   // Ambil daftar mata pelajaran
   const rawMapelList = await prisma.mataPelajaran.findMany({
+    where: user.role === "SUPER_ADMIN" ? {} : {
+      OR: [{ sekolahId: user.sekolahId }, { sekolahId: null }],
+    },
     select: {
       id: true,
       kode: true,

@@ -10,7 +10,13 @@ import {
   TablePaginationNav,
 } from "@/components/shared/table-pagination";
 import { toast } from "@/components/shared/toast";
-import { SlidersHorizontalIcon } from "@/components/shared/icons";
+import {
+  SlidersHorizontalIcon,
+  RotateCcwIcon,
+  SaveIcon,
+  CheckCircle2Icon,
+  XCircleIcon,
+} from "@/components/shared/icons";
 import ModalBobotNilai from "./modal-bobot-nilai";
 
 // Helper untuk membangun data form awal dari nilai & TP tersimpan
@@ -83,6 +89,12 @@ export default function FormInputNilai({
   const [formData, setFormData] = useState(() =>
     buildInitialValues(siswaList, nilaiList, tpList)
   );
+  // Snapshot data yang sudah tersimpan di database untuk dirty checking
+  const [savedData, setSavedData] = useState(() =>
+    buildInitialValues(siswaList, nilaiList, tpList)
+  );
+  // Loading state simpan individual per siswaId
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   // State bobot penilaian dinamis pengampu
   const [showBobotModal, setShowBobotModal] = useState(false);
@@ -111,7 +123,9 @@ export default function FormInputNilai({
 
   // Sinkronisasi state form jika data server berubah atau setelah simpan berhasil
   useEffect(() => {
-    setFormData(buildInitialValues(siswaList, nilaiList, tpList));
+    const initial = buildInitialValues(siswaList, nilaiList, tpList);
+    setFormData(initial);
+    setSavedData(initial);
   }, [siswaList, nilaiList, tpList]);
 
   // Kalkulasi nilai akhir: Berdasarkan bobot dinamis pengampu (Tugas, UTS, UAS)
@@ -318,6 +332,140 @@ export default function FormInputNilai({
     return { label: "D (Perlu Bimbingan)", color: "text-rose-700 bg-rose-50 border-rose-200" };
   };
 
+  // Pengecekan apakah baris siswa tertentu mengalami perubahan data (dirty check)
+  const isRowChanged = (siswaId: string) => {
+    const current = formData[siswaId];
+    const original = savedData[siswaId];
+    if (!current || !original) return false;
+    if ((current.tugas || "") !== (original.tugas || "")) return true;
+    if ((current.uts || "") !== (original.uts || "")) return true;
+    if ((current.uas || "") !== (original.uas || "")) return true;
+
+    const curTPs = [...(current.checkedTPs || [])].sort();
+    const origTPs = [...(original.checkedTPs || [])].sort();
+    if (curTPs.length !== origTPs.length) return true;
+    for (let i = 0; i < curTPs.length; i++) {
+      if (curTPs[i] !== origTPs[i]) return true;
+    }
+
+    return false;
+  };
+
+  // Jumlah siswa yang datanya berubah tapi belum disimpan
+  const unsavedCount = useMemo(() => {
+    return siswaList.filter((s) => isRowChanged(s.id)).length;
+  }, [siswaList, formData, savedData]);
+
+  const hasUnsavedChanges = unsavedCount > 0;
+
+  // Peringatan sebelum pengguna menutup/reload halaman jika masih ada perubahan belum disimpan
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Aksi batalkan perubahan satu siswa (kembalikan ke savedData)
+  const handleRevertIndividual = (siswaId: string) => {
+    const original = savedData[siswaId];
+    const siswa = siswaList.find((s) => s.id === siswaId);
+    if (!original) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      [siswaId]: {
+        tugas: original.tugas,
+        uts: original.uts,
+        uas: original.uas,
+        checkedTPs: [...original.checkedTPs],
+      },
+    }));
+
+    toast.info(`Perubahan nilai untuk ${siswa?.nama || "siswa"} dibatalkan.`);
+  };
+
+  // Aksi batalkan seluruh perubahan yang belum tersimpan
+  const handleRevertAll = () => {
+    setFormData(JSON.parse(JSON.stringify(savedData)));
+    toast.info("Seluruh perubahan nilai berhasil dibatalkan.");
+  };
+
+  // Aksi simpan nilai siswa secara individual (per baris)
+  const handleSaveIndividual = async (siswaId: string) => {
+    if (isLocked) return;
+    const d = formData[siswaId];
+    const siswa = siswaList.find((s) => s.id === siswaId);
+    if (!d || !siswa) return;
+
+    const t = parseFloat(d.tugas);
+    const u = parseFloat(d.uts);
+    const a = parseFloat(d.uas);
+
+    if (!isNaN(t) && (t < 0 || t > 100)) {
+      toast.error(`Nilai Tugas untuk ${siswa.nama} (${d.tugas}) tidak valid (harus 0 - 100).`);
+      return;
+    }
+    if (!isNaN(u) && (u < 0 || u > 100)) {
+      toast.error(`Nilai UTS untuk ${siswa.nama} (${d.uts}) tidak valid (harus 0 - 100).`);
+      return;
+    }
+    if (!isNaN(a) && (a < 0 || a > 100)) {
+      toast.error(`Nilai UAS untuk ${siswa.nama} (${d.uas}) tidak valid (harus 0 - 100).`);
+      return;
+    }
+
+    const na = hitungNilaiAkhir(d.tugas, d.uts, d.uas);
+    const tpTercapaiCodes = d.checkedTPs
+      .map((id) => tpList.find((tp) => tp.id === id)?.kode)
+      .filter(Boolean)
+      .join(", ");
+
+    const item: NilaiInputItem = {
+      siswaId: siswa.id,
+      nilaiTugas: parseFloat(d.tugas) || 0,
+      nilaiUTS: parseFloat(d.uts) || 0,
+      nilaiUAS: parseFloat(d.uas) || 0,
+      nilaiAkhir: na,
+      catatan: tpTercapaiCodes ? `TP Tercapai: ${tpTercapaiCodes}` : undefined,
+    };
+
+    setSavingId(siswa.id);
+    try {
+      const res = await simpanNilaiBatchAction({
+        mapelId: activePengampu.mapelId,
+        tahunAjaran: selectedTahunAjaran,
+        semester: selectedSemester,
+        items: [item],
+      });
+
+      setSavingId(null);
+      if (res.success) {
+        toast.success(`Nilai untuk ${siswa.nama} berhasil disimpan.`);
+        setSavedData((prev) => ({
+          ...prev,
+          [siswaId]: {
+            tugas: d.tugas,
+            uts: d.uts,
+            uas: d.uas,
+            checkedTPs: [...d.checkedTPs],
+          },
+        }));
+        updateSortSnapshot();
+        router.refresh();
+      } else {
+        toast.error(res.message);
+      }
+    } catch {
+      setSavingId(null);
+      toast.error("Ada masalah koneksi, silakan coba lagi.");
+    }
+  };
+
   // Terapkan semua Tujuan Pembelajaran (TP) tercapai untuk seluruh siswa
   const handleCheckAllTP = () => {
     if (isLocked) return;
@@ -394,6 +542,7 @@ export default function FormInputNilai({
 
       if (res.success) {
         toast.success(res.message);
+        setSavedData(JSON.parse(JSON.stringify(formData)));
         router.refresh();
         updateSortSnapshot();
       } else {
@@ -588,11 +737,24 @@ export default function FormInputNilai({
               Tingkat {activePengampu.kelas.tingkat}
             </span>
           </div>
-          <p className="text-xs text-zinc-600 mt-1">
-            
-            <strong className="text-zinc-900 font-semibold">{totalSiswa} Siswa Terdaftar</strong> (
-            <span className="text-emerald-700 font-medium">{sudahDinilaiCount} siswa terisi</span>)
-          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-zinc-600">
+            <span>
+              <strong className="text-zinc-900 font-semibold">{totalSiswa} Siswa Terdaftar</strong> (
+              <span className="text-emerald-700 font-medium">{sudahDinilaiCount} siswa terisi</span>)
+            </span>
+            <span className="text-stone-300">•</span>
+            {hasUnsavedChanges ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-rose-600">
+                <XCircleIcon className="h-3.5 w-3.5 text-rose-500" />
+                {unsavedCount} Belum Disimpan
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                <CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-600" />
+                Semua Tersimpan
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -623,6 +785,17 @@ export default function FormInputNilai({
             <span>✅</span>
             <span>Terapkan Semua TP</span>
           </button>
+          {hasUnsavedChanges && (
+            <button
+              type="button"
+              onClick={handleRevertAll}
+              className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Batalkan seluruh perubahan nilai yang belum disimpan"
+            >
+              <RotateCcwIcon className="h-3.5 w-3.5" />
+              <span>Batal Semua ({unsavedCount})</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSubmit}
@@ -836,12 +1009,13 @@ export default function FormInputNilai({
                     Centang [✓] TP yang tercapai
                   </span>
                 </th>
+                <th className="px-3 py-3.5 w-36 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
               {paginatedSiswaList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-500">
+                  <td colSpan={9} className="py-12 text-center text-zinc-500">
                     {searchQuery || filterStatus !== "all"
                       ? "Tidak ada siswa yang cocok dengan kriteria filter."
                       : "Belum ada siswa di rombel ini."}
@@ -855,9 +1029,16 @@ export default function FormInputNilai({
                   const na = skor.na;
                   const pred = getPredikat(na);
                   const rank = rankingMap.get(siswa.id);
+                  const isChanged = isRowChanged(siswa.id);
+                  const isRowSaving = savingId === siswa.id;
 
                   return (
-                    <tr key={siswa.id} className="hover:bg-stone-50/70 transition-colors">
+                    <tr
+                      key={siswa.id}
+                      className={`transition-colors ${
+                        isChanged ? "bg-amber-50/40 hover:bg-amber-50/70" : "hover:bg-stone-50/70"
+                      }`}
+                    >
                       <td className="px-3 py-3.5 text-center text-zinc-600 font-mono">
                         {sortBy === "nilai-desc" && rank ? (
                           rank === 1 ? (
@@ -896,6 +1077,12 @@ export default function FormInputNilai({
                           <span className="font-semibold text-zinc-900 text-sm">
                             {siswa.nama}
                           </span>
+                          {isChanged && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              Diubah
+                            </span>
+                          )}
                           {sortBy !== "nilai-desc" && rank && rank <= 3 && (
                             <span
                               className="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-amber-50 text-amber-800 border border-amber-200"
@@ -1027,6 +1214,42 @@ export default function FormInputNilai({
                             })}
                           </div>
                         )}
+                      </td>
+
+                      {/* Kolom Aksi per Baris Siswa (Batal / Simpan) */}
+                      <td className="px-3 py-3 text-center whitespace-nowrap align-middle">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {isChanged && (
+                            <button
+                              type="button"
+                              disabled={isRowSaving || isLocked}
+                              onClick={() => handleRevertIndividual(siswa.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition shadow-2xs cursor-pointer disabled:opacity-50"
+                              title="Batalkan perubahan nilai untuk siswa ini"
+                            >
+                              <RotateCcwIcon className="h-3.5 w-3.5" />
+                              <span>Batal</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isRowSaving || isLocked}
+                            onClick={() => handleSaveIndividual(siswa.id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer ${
+                              !isChanged
+                                ? "bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200"
+                                : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                            } disabled:opacity-50`}
+                            title={isChanged ? "Simpan perubahan nilai siswa ini" : "Data nilai siswa ini tersimpan"}
+                          >
+                            {isRowSaving ? (
+                              <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
+                            ) : (
+                              <SaveIcon className="h-3.5 w-3.5" />
+                            )}
+                            <span>Simpan</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

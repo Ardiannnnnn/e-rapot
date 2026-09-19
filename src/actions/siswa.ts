@@ -1,10 +1,20 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireActionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function getSiswaByKelas(kelasId: string) {
+  const user = await requireActionUser();
+  const targetKelas = await prisma.kelas.findUnique({
+    where: { id: kelasId },
+    select: { sekolahId: true },
+  });
+
+  if (!targetKelas || (user.role !== "SUPER_ADMIN" && user.sekolahId && targetKelas.sekolahId !== user.sekolahId)) {
+    throw new Error("Akses ditolak: Rombel bukan milik sekolah Anda.");
+  }
+
   return prisma.siswa.findMany({
     where: { kelasId },
     orderBy: { nama: "asc" },
@@ -23,7 +33,7 @@ export async function createSiswaAction(payload: {
   agama?: string;
   alamat?: string;
 }) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { nisn, nis, nama, jenisKelamin, kelasId, nik, tempatLahir, tanggalLahir, agama, alamat } = payload;
 
   if (!nisn || !nis || !nama || !jenisKelamin || !kelasId) {
@@ -34,6 +44,18 @@ export async function createSiswaAction(payload: {
     const cleanNisn = nisn.trim();
     const cleanNis = nis.trim();
 
+    // Validasi kepemilikan kelas (tenant check)
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      select: { id: true, sekolahId: true },
+    });
+    if (!targetKelas) {
+      return { success: false, message: "Rombel kelas tidak ditemukan." };
+    }
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && targetKelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Rombel bukan milik sekolah Anda." };
+    }
+
     const existingNisn = await prisma.siswa.findUnique({
       where: { nisn: cleanNisn },
     });
@@ -41,11 +63,15 @@ export async function createSiswaAction(payload: {
       return { success: false, message: `NISN '${cleanNisn}' sudah terdaftar pada siswa lain.` };
     }
 
-    const existingNis = await prisma.siswa.findUnique({
-      where: { nis: cleanNis },
+    // NIS unik dalam lingkup sekolah target
+    const existingNis = await prisma.siswa.findFirst({
+      where: {
+        nis: cleanNis,
+        kelas: { sekolahId: targetKelas.sekolahId },
+      },
     });
     if (existingNis) {
-      return { success: false, message: `NIPD '${cleanNis}' sudah terdaftar pada siswa lain.` };
+      return { success: false, message: `NIPD/NIS '${cleanNis}' sudah terdaftar pada siswa lain di sekolah ini.` };
     }
 
     await prisma.siswa.create({
@@ -87,7 +113,7 @@ export async function updateSiswaAction(payload: {
   agama?: string;
   alamat?: string;
 }) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { id, nisn, nis, nama, jenisKelamin, kelasId, nik, tempatLahir, tanggalLahir, agama, alamat } = payload;
 
   if (!id || !nisn || !nis || !nama || !jenisKelamin || !kelasId) {
@@ -95,10 +121,34 @@ export async function updateSiswaAction(payload: {
   }
 
   try {
+    // Validasi kepemilikan data siswa (BOLA/IDOR protection)
+    const existingSiswa = await prisma.siswa.findUnique({
+      where: { id },
+      include: { kelas: true },
+    });
+    if (!existingSiswa) {
+      return { success: false, message: "Data siswa tidak ditemukan." };
+    }
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && existingSiswa.kelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Data siswa bukan milik sekolah Anda." };
+    }
+
+    // Validasi rombel baru
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      select: { id: true, sekolahId: true },
+    });
+    if (!targetKelas) {
+      return { success: false, message: "Rombel kelas tidak ditemukan." };
+    }
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && targetKelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Rombel tujuan bukan milik sekolah Anda." };
+    }
+
     const cleanNisn = nisn.trim();
     const cleanNis = nis.trim();
 
-    // Cek duplikasi NISN dengan ID lain
+    // Cek duplikasi NISN global dengan ID lain
     const existingNisn = await prisma.siswa.findFirst({
       where: {
         nisn: cleanNisn,
@@ -109,14 +159,16 @@ export async function updateSiswaAction(payload: {
       return { success: false, message: `NISN '${cleanNisn}' sudah terdaftar pada siswa lain.` };
     }
 
+    // Cek duplikasi NIS dalam lingkup sekolah
     const existingNis = await prisma.siswa.findFirst({
       where: {
         nis: cleanNis,
         NOT: { id },
+        kelas: { sekolahId: targetKelas.sekolahId },
       },
     });
     if (existingNis) {
-      return { success: false, message: `NIPD '${cleanNis}' sudah terdaftar pada siswa lain.` };
+      return { success: false, message: `NIPD/NIS '${cleanNis}' sudah terdaftar pada siswa lain di sekolah ini.` };
     }
 
     await prisma.siswa.update({
@@ -147,9 +199,21 @@ export async function updateSiswaAction(payload: {
 }
 
 export async function deleteSiswaAction(siswaId: string) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   try {
+    // Validasi kepemilikan siswa (BOLA/IDOR protection)
+    const existingSiswa = await prisma.siswa.findUnique({
+      where: { id: siswaId },
+      include: { kelas: true },
+    });
+    if (!existingSiswa) {
+      return { success: false, message: "Data siswa tidak ditemukan." };
+    }
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && existingSiswa.kelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Siswa ini bukan milik sekolah Anda." };
+    }
+
     await prisma.siswa.delete({
       where: { id: siswaId },
     });
@@ -179,7 +243,7 @@ export interface ItemSiswaImport {
 }
 
 export async function importSiswaExcelAction(items: ItemSiswaImport[]) {
-  const user = await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   if (items.length === 0) {
     return { success: false, message: "Tidak ada data siswa untuk diimpor." };
@@ -208,12 +272,32 @@ export async function importSiswaExcelAction(items: ItemSiswaImport[]) {
       const chunk = items.slice(i, i + CHUNK_SIZE);
       const operations: any[] = [];
 
+      // Cek siswa yang sudah ada di database untuk mencegah pembajakan data lintas sekolah (Cross-Tenant Hijacking)
+      const chunkNisns = chunk.map((c) => String(c.nisn || "").trim()).filter(Boolean);
+      const existingSiswaList = await prisma.siswa.findMany({
+        where: { nisn: { in: chunkNisns } },
+        include: { kelas: true },
+      });
+      const existingMap = new Map(existingSiswaList.map((s) => [s.nisn, s]));
+
       for (const item of chunk) {
         const cleanNisn = String(item.nisn || "").trim();
         const cleanNis = String(item.nis || "").trim();
         const cleanNama = String(item.nama || "").trim();
 
         if (!cleanNisn || !cleanNis || !cleanNama) {
+          continue;
+        }
+
+        // Validasi proteksi kepemilikan tenant
+        const existingSiswa = existingMap.get(cleanNisn);
+        if (
+          existingSiswa &&
+          user.role !== "SUPER_ADMIN" &&
+          user.sekolahId &&
+          existingSiswa.kelas.sekolahId !== user.sekolahId
+        ) {
+          errors.push(`Siswa '${cleanNama}' (NISN: ${cleanNisn}) ditolak: Sudah terdaftar pada satuan pendidikan lain.`);
           continue;
         }
 

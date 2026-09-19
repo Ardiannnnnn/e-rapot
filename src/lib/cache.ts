@@ -9,7 +9,9 @@ import { prisma } from "@/lib/prisma";
 export const getCachedSekolah = (sekolahId: string) =>
   unstable_cache(
     async () => {
-      console.log(`\x1b[33m⚡ [CACHE MISS - DB FETCH]\x1b[0m Mengambil data Profil Sekolah (${sekolahId}) dari database...`);
+      if (process.env.NODE_ENV === "development") {
+        console.log(`\x1b[33m⚡ [CACHE MISS - DB FETCH]\x1b[0m Mengambil data Profil Sekolah (${sekolahId}) dari database...`);
+      }
       return prisma.sekolah.findUnique({
         where: { id: sekolahId },
       });
@@ -29,7 +31,9 @@ export const getCachedSekolah = (sekolahId: string) =>
 export const getCachedPeriodeAktif = (sekolahId: string) =>
   unstable_cache(
     async () => {
-      console.log(`\x1b[33m⚡ [CACHE MISS - DB FETCH]\x1b[0m Mengambil data Periode Aktif (${sekolahId}) dari database...`);
+      if (process.env.NODE_ENV === "development") {
+        console.log(`\x1b[33m⚡ [CACHE MISS - DB FETCH]\x1b[0m Mengambil data Periode Aktif (${sekolahId}) dari database...`);
+      }
       return prisma.periodeAkademik.findFirst({
         where: {
           sekolahId,

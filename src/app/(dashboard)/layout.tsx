@@ -40,7 +40,7 @@ export default async function DashboardLayout({
           </main>
 
           <footer className="border-t border-stone-200 py-6 text-center text-xs text-zinc-500 mt-auto print:hidden">
-            E-Rapor SD &copy; 2026 • Sistem Informasi Kurikulum Merdeka
+            NilaiKu &copy; 2026 • Sistem Informasi Kurikulum Merdeka
           </footer>
         </div>
       </div>

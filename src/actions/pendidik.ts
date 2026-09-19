@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireActionUser } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { sanitizeInput, isValidEmail } from "@/lib/sanitize";
@@ -12,7 +12,7 @@ export async function createGuruAction(payload: {
   password?: string;
   role?: "GURU" | "WALI_KELAS";
 }) {
-  const user = await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { name, email, password, role } = payload;
 
   const cleanName = sanitizeInput(name || "", 100);
@@ -70,12 +70,15 @@ export async function createGuruAction(payload: {
 
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 
+    const ALLOWED_GURU_ROLES = ["GURU", "WALI_KELAS"];
+    const safeRole = role && ALLOWED_GURU_ROLES.includes(role) ? role : "GURU";
+
     await prisma.user.create({
       data: {
         name: cleanName,
         email: cleanEmail,
         password: hashedPassword,
-        role: role || "GURU",
+        role: safeRole as any,
         sekolahId: user.sekolahId || undefined,
       },
     });
@@ -97,7 +100,7 @@ export async function assignPengampuAction(payload: {
   tahunAjaran: string;
   semester: number; // 0 = Semua, 1 = Ganjil, 2 = Genap
 }) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { guruId, kelasId, mapelId, tahunAjaran, semester } = payload;
 
   if (!guruId || !kelasId || !mapelId || !tahunAjaran) {
@@ -105,6 +108,28 @@ export async function assignPengampuAction(payload: {
   }
 
   try {
+    // Validasi tenant kepemilikan guru dan kelas
+    const targetGuru = await prisma.user.findUnique({
+      where: { id: guruId },
+      select: { id: true, sekolahId: true, name: true },
+    });
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      select: { id: true, sekolahId: true, nama: true },
+    });
+
+    if (!targetGuru || !targetKelas) {
+      return { success: false, message: "Data guru atau rombel tidak ditemukan." };
+    }
+
+    if (
+      user.role !== "SUPER_ADMIN" &&
+      user.sekolahId &&
+      (targetGuru.sekolahId !== user.sekolahId || targetKelas.sekolahId !== user.sekolahId)
+    ) {
+      return { success: false, message: "Akses ditolak: Guru atau rombel bukan bagian dari sekolah Anda." };
+    }
+
     const sem = Number(semester);
 
     // Cek apakah penugasan yang sama persis sudah ada
@@ -152,9 +177,22 @@ export async function assignPengampuAction(payload: {
 }
 
 export async function deletePengampuAction(pengampuId: string) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   try {
+    const existing = await prisma.pengampu.findUnique({
+      where: { id: pengampuId },
+      include: { kelas: true },
+    });
+
+    if (!existing) {
+      return { success: false, message: "Penugasan tidak ditemukan." };
+    }
+
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && existing.kelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Penugasan ini bukan milik sekolah Anda." };
+    }
+
     await prisma.pengampu.delete({
       where: { id: pengampuId },
     });
@@ -172,9 +210,22 @@ export async function deletePengampuAction(pengampuId: string) {
 }
 
 export async function deleteGuruAction(guruId: string) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   try {
+    const targetGuru = await prisma.user.findUnique({
+      where: { id: guruId },
+      select: { id: true, sekolahId: true },
+    });
+
+    if (!targetGuru) {
+      return { success: false, message: "Data guru tidak ditemukan." };
+    }
+
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && targetGuru.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Akun guru bukan milik sekolah Anda." };
+    }
+
     // Cek apakah masih memiliki penugasan aktif
     const countPengampu = await prisma.pengampu.count({
       where: { guruId },
@@ -208,11 +259,35 @@ export async function updateGuruAction(payload: {
   isActive?: boolean;
   kelasWaliId?: string | null;
 }) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { id, name, email, password, isActive, kelasWaliId } = payload;
 
   if (!id) {
     return { success: false, message: "ID guru tidak valid." };
+  }
+
+  // Validasi kepemilikan guru (BOLA/IDOR protection)
+  const existingGuru = await prisma.user.findUnique({
+    where: { id },
+  });
+
+  if (!existingGuru) {
+    return { success: false, message: "Data guru tidak ditemukan." };
+  }
+
+  if (user.role !== "SUPER_ADMIN" && user.sekolahId && existingGuru.sekolahId !== user.sekolahId) {
+    return { success: false, message: "Akses ditolak: Data guru bukan milik sekolah Anda." };
+  }
+
+  // Jika di-assign kelas wali, pastikan kelas tersebut milik sekolah user
+  if (kelasWaliId) {
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: kelasWaliId },
+      select: { sekolahId: true },
+    });
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && targetKelas?.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Rombel perwalian bukan milik sekolah Anda." };
+    }
   }
 
   const cleanName = sanitizeInput(name || "", 100);
@@ -357,7 +432,7 @@ export async function updateGuruAction(payload: {
 }
 
 export async function toggleGuruStatusAction(guruId: string) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   try {
     const guru = await prisma.user.findUnique({
@@ -369,6 +444,10 @@ export async function toggleGuruStatusAction(guruId: string) {
 
     if (!guru) {
       return { success: false, message: "Data guru tidak ditemukan." };
+    }
+
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && guru.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Akun guru bukan milik sekolah Anda." };
     }
 
     const nextStatus = !guru.isActive;
@@ -428,7 +507,7 @@ export async function updatePengampuAction(payload: {
   mapelId: string;
   semester: number;
 }) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { id, guruId, kelasId, mapelId, semester } = payload;
 
   if (!id || !guruId || !kelasId || !mapelId) {
@@ -438,10 +517,33 @@ export async function updatePengampuAction(payload: {
   try {
     const pengampu = await prisma.pengampu.findUnique({
       where: { id },
+      include: { kelas: true },
     });
 
     if (!pengampu) {
       return { success: false, message: "Jadwal penugasan tidak ditemukan." };
+    }
+
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && pengampu.kelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Penugasan ini bukan milik sekolah Anda." };
+    }
+
+    // Validasi tenant tujuan guru & kelas
+    const targetGuru = await prisma.user.findUnique({
+      where: { id: guruId },
+      select: { sekolahId: true },
+    });
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: kelasId },
+      select: { sekolahId: true },
+    });
+
+    if (
+      user.role !== "SUPER_ADMIN" &&
+      user.sekolahId &&
+      (targetGuru?.sekolahId !== user.sekolahId || targetKelas?.sekolahId !== user.sekolahId)
+    ) {
+      return { success: false, message: "Akses ditolak: Guru atau rombel tujuan bukan bagian dari sekolah Anda." };
     }
 
     const sem = Number(semester);

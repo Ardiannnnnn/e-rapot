@@ -40,7 +40,7 @@ async function CetakContent(props: {
     kelas = await prisma.kelas.findFirst({
       where: {
         id: requestedKelasId,
-        ...(user.role === "GURU"
+        ...(user.role === "WALI_KELAS" || user.role === "GURU"
           ? { waliKelasId: user.id }
           : user.sekolahId
           ? { sekolahId: user.sekolahId }

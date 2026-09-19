@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireActionUser } from "@/lib/auth";
 import { revalidatePath, updateTag } from "next/cache";
 
 /**
@@ -31,11 +31,12 @@ export async function createPeriodeAction(payload: {
   tempatCetak?: string;
   isAktif?: boolean;
 }) {
-  const user = await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   if (!user.sekolahId) {
     return { success: false, message: "Pengguna tidak terhubung ke data sekolah." };
   }
 
+  const sekolahId = user.sekolahId;
   const { tahunAjaran, semester, tanggalCetak, tempatCetak, isAktif } = payload;
 
   if (!tahunAjaran || !semester) {
@@ -47,7 +48,7 @@ export async function createPeriodeAction(payload: {
     const existing = await prisma.periodeAkademik.findUnique({
       where: {
         sekolahId_tahunAjaran_semester: {
-          sekolahId: user.sekolahId,
+          sekolahId,
           tahunAjaran: tahunAjaran.trim(),
           semester: Number(semester),
         },
@@ -64,14 +65,14 @@ export async function createPeriodeAction(payload: {
     // Jika diset sebagai aktif, nonaktifkan periode lain
     if (isAktif) {
       await prisma.periodeAkademik.updateMany({
-        where: { sekolahId: user.sekolahId },
+        where: { sekolahId },
         data: { isAktif: false },
       });
     }
 
     await prisma.periodeAkademik.create({
       data: {
-        sekolahId: user.sekolahId,
+        sekolahId,
         tahunAjaran: tahunAjaran.trim(),
         semester: Number(semester),
         isAktif: Boolean(isAktif),
@@ -103,8 +104,8 @@ export async function createPeriodeAction(payload: {
  * Menetapkan satu periode sebagai Periode Berjalan (AKTIF)
  */
 export async function setPeriodeAktifAction(periodeId: string) {
-  const user = await requireUser();
-  if (!user.sekolahId) {
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+  if (!user.sekolahId && user.role !== "SUPER_ADMIN") {
     return { success: false, message: "Pengguna tidak terhubung ke data sekolah." };
   }
 
@@ -113,13 +114,15 @@ export async function setPeriodeAktifAction(periodeId: string) {
       where: { id: periodeId },
     });
 
-    if (!target || target.sekolahId !== user.sekolahId) {
-      return { success: false, message: "Periode akademik tidak ditemukan." };
+    if (!target || (user.role !== "SUPER_ADMIN" && target.sekolahId !== user.sekolahId)) {
+      return { success: false, message: "Periode akademik tidak ditemukan atau bukan milik sekolah Anda." };
     }
+
+    const effectiveSekolahId = target.sekolahId;
 
     await prisma.$transaction([
       prisma.periodeAkademik.updateMany({
-        where: { sekolahId: user.sekolahId },
+        where: { sekolahId: effectiveSekolahId },
         data: { isAktif: false },
       }),
       prisma.periodeAkademik.update({
@@ -132,7 +135,7 @@ export async function setPeriodeAktifAction(periodeId: string) {
     revalidatePath("/guru");
     revalidatePath("/guru/siswa");
     revalidatePath("/guru/tp");
-    updateTag(`periode-aktif-${user.sekolahId}`);
+    updateTag(`periode-aktif-${effectiveSekolahId}`);
 
     return {
       success: true,
@@ -151,8 +154,8 @@ export async function setPeriodeAktifAction(periodeId: string) {
  * Toggle Status Input Nilai (BUKA <-> KUNCI)
  */
 export async function toggleStatusNilaiAction(periodeId: string) {
-  const user = await requireUser();
-  if (!user.sekolahId) {
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+  if (!user.sekolahId && user.role !== "SUPER_ADMIN") {
     return { success: false, message: "Pengguna tidak terhubung ke data sekolah." };
   }
 
@@ -161,8 +164,8 @@ export async function toggleStatusNilaiAction(periodeId: string) {
       where: { id: periodeId },
     });
 
-    if (!target || target.sekolahId !== user.sekolahId) {
-      return { success: false, message: "Periode akademik tidak ditemukan." };
+    if (!target || (user.role !== "SUPER_ADMIN" && target.sekolahId !== user.sekolahId)) {
+      return { success: false, message: "Periode akademik tidak ditemukan atau bukan milik sekolah Anda." };
     }
 
     const nextStatus = target.statusNilai === "BUKA" ? "KUNCI" : "BUKA";
@@ -196,8 +199,8 @@ export async function updatePengaturanCetakAction(payload: {
   tanggalCetak: string;
   tempatCetak: string;
 }) {
-  const user = await requireUser();
-  if (!user.sekolahId) {
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+  if (!user.sekolahId && user.role !== "SUPER_ADMIN") {
     return { success: false, message: "Pengguna tidak terhubung ke data sekolah." };
   }
 
@@ -206,8 +209,8 @@ export async function updatePengaturanCetakAction(payload: {
       where: { id: payload.periodeId },
     });
 
-    if (!target || target.sekolahId !== user.sekolahId) {
-      return { success: false, message: "Periode akademik tidak ditemukan." };
+    if (!target || (user.role !== "SUPER_ADMIN" && target.sekolahId !== user.sekolahId)) {
+      return { success: false, message: "Periode akademik tidak ditemukan atau bukan milik sekolah Anda." };
     }
 
     await prisma.periodeAkademik.update({
@@ -237,8 +240,8 @@ export async function updatePengaturanCetakAction(payload: {
  * Hapus Periode Akademik
  */
 export async function deletePeriodeAction(periodeId: string) {
-  const user = await requireUser();
-  if (!user.sekolahId) {
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
+  if (!user.sekolahId && user.role !== "SUPER_ADMIN") {
     return { success: false, message: "Pengguna tidak terhubung ke data sekolah." };
   }
 
@@ -247,8 +250,8 @@ export async function deletePeriodeAction(periodeId: string) {
       where: { id: periodeId },
     });
 
-    if (!target || target.sekolahId !== user.sekolahId) {
-      return { success: false, message: "Periode tidak ditemukan." };
+    if (!target || (user.role !== "SUPER_ADMIN" && target.sekolahId !== user.sekolahId)) {
+      return { success: false, message: "Periode akademik tidak ditemukan atau bukan milik sekolah Anda." };
     }
 
     if (target.isAktif) {

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import FormPendidik from "./form-pendidik";
 import { GuruItem, PengampuRecord } from "@/types/admin-sekolah";
 
@@ -14,7 +14,7 @@ export default function AdminPendidikPage() {
 }
 
 async function AdminPendidikContent() {
-  const user = await requireUser();
+  const user = await requireRole(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   // Ambil periode aktif untuk tahun ajaran
   const periodeAktif = await prisma.periodeAkademik.findFirst({
@@ -25,12 +25,13 @@ async function AdminPendidikContent() {
   });
   const tahunAjaranAktif = periodeAktif?.tahunAjaran || "2026/2027";
 
-  // Ambil daftar akun guru
+  // Ambil daftar akun guru milik sekolah yang sedang aktif
   const rawGuruList = await prisma.user.findMany({
     where: {
       role: {
         in: ["GURU", "WALI_KELAS"],
       },
+      ...(user.sekolahId ? { sekolahId: user.sekolahId } : {}),
     },
     include: {
       kelasWali: {
@@ -60,10 +61,11 @@ async function AdminPendidikContent() {
     totalPengampu: g._count.pengampu,
   }));
 
-  // Ambil data penugasan pengampu
+  // Ambil data penugasan pengampu pada sekolah ini
   const rawPengampuList = await prisma.pengampu.findMany({
     where: {
       tahunAjaran: tahunAjaranAktif,
+      ...(user.sekolahId ? { kelas: { sekolahId: user.sekolahId } } : {}),
     },
     include: {
       guru: {
@@ -104,8 +106,9 @@ async function AdminPendidikContent() {
     mapel: p.mapel,
   }));
 
-  // Ambil daftar rombel untuk opsi form
+  // Ambil daftar rombel sekolah ini untuk opsi form
   const rawKelasList = await prisma.kelas.findMany({
+    where: user.sekolahId ? { sekolahId: user.sekolahId } : undefined,
     select: {
       id: true,
       nama: true,
@@ -134,6 +137,9 @@ async function AdminPendidikContent() {
 
   // Ambil daftar mapel untuk opsi form
   const mapelList = await prisma.mataPelajaran.findMany({
+    where: user.role === "SUPER_ADMIN" ? {} : {
+      OR: [{ sekolahId: user.sekolahId }, { sekolahId: null }],
+    },
     select: {
       id: true,
       kode: true,

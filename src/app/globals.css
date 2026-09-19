@@ -25,3 +25,175 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
 }
+
+/* ==========================================================================
+   ANIMATED RUNNING BORDER BEAM (GARIS BERJALAN PADA KARTU)
+   ========================================================================== */
+
+@keyframes border-beam {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes line-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.card-beam-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  padding: 1.5px;
+  background: rgba(229, 231, 235, 0.8);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-beam-wrapper:hover {
+  box-shadow: 0 14px 30px -8px rgba(16, 185, 129, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+  transform: translateY(-3px);
+  background: rgba(16, 185, 129, 0.3);
+}
+
+.card-beam-light {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 270deg,
+    rgba(16, 185, 129, 0.15) 300deg,
+    rgba(16, 185, 129, 0.8) 335deg,
+    #10b981 355deg,
+    #059669 360deg
+  );
+  animation: border-beam 5s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card-beam-light.delay-1 {
+  animation-delay: -1.25s;
+  animation-duration: 5.5s;
+}
+
+.card-beam-light.delay-2 {
+  animation-delay: -2.5s;
+  animation-duration: 6s;
+}
+
+.card-beam-light.delay-3 {
+  animation-delay: -3.75s;
+  animation-duration: 6.5s;
+}
+
+.card-beam-content {
+  position: relative;
+  border-radius: calc(1.25rem - 1.5px);
+  background: #ffffff;
+  z-index: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shimmer-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.9) 50%, transparent 100%);
+  animation: line-shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   WORKFLOW PIPELINE CONNECTING LINES (LINE YANG BERJALAN MENGHUBUNGKAN STEP)
+   ========================================================================== */
+
+@keyframes pipeline-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pipeline-flowing-stroke {
+  stroke-dasharray: 6 6;
+  animation: pipeline-flow 1s linear infinite;
+}
+
+@keyframes pulse-travel-h {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.pipeline-pulse-dot {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981, 0 0 18px rgba(16, 185, 129, 0.8);
+  animation: pulse-travel-h 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.node-ping {
+  animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+

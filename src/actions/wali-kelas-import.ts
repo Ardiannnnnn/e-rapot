@@ -26,8 +26,29 @@ export async function importNilaiExcelAction(input: ImportNilaiInput) {
   try {
     const user = await requireUser();
 
-    // 1. Otorisasi: Wali Kelas rombel bersangkutan atau Admin
+    // 1. Verifikasi kelas dan tenant
+    const targetKelas = await prisma.kelas.findUnique({
+      where: { id: input.kelasId },
+      select: { id: true, waliKelasId: true, sekolahId: true },
+    });
+
+    if (!targetKelas) {
+      return {
+        success: false,
+        message: "Rombel kelas tidak ditemukan.",
+      };
+    }
+
+    if (user.sekolahId && targetKelas.sekolahId !== user.sekolahId) {
+      return {
+        success: false,
+        message: "Akses ditolak: Rombel kelas tidak berada di bawah wewenang sekolah Anda.",
+      };
+    }
+
+    // Otorisasi: Wali Kelas rombel bersangkutan atau Admin
     const isWaliKelas =
+      targetKelas.waliKelasId === user.id ||
       user.kelasWali?.id === input.kelasId ||
       user.role === "ADMIN_SEKOLAH" ||
       user.role === "ADMIN" ||

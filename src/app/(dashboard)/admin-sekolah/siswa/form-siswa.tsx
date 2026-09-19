@@ -190,7 +190,7 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Data Siswa");
-    XLSX.writeFile(wb, "Template_Import_Siswa_eRapor.xlsx");
+    XLSX.writeFile(wb, "Template_Import_Siswa_NilaiKu.xlsx");
   };
 
   // 2. Upload & Parse File Excel Siswa

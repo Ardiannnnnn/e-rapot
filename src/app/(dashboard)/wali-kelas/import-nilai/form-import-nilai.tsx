@@ -259,7 +259,7 @@ export default function FormImportNilaiClient({
             title: "Format Penilaian Tidak Sesuai",
             text: "File Excel yang Anda unggah kosong atau tidak memiliki lembar kerja (worksheet).",
             type: "warning",
-            solution: `Silakan gunakan template resmi e-Rapor untuk Kelas ${kelasNama} yang telah disediakan.`,
+            solution: `Silakan gunakan template resmi NilaiKu untuk Kelas ${kelasNama} yang telah disediakan.`,
             showDownloadTemplate: true,
           });
           return;
@@ -303,7 +303,7 @@ export default function FormImportNilaiClient({
         if (headerRowIndex === -1) {
           setWarningModal({
             title: "Format Penilaian Tidak Sesuai",
-            text: "File Excel yang Anda unggah tidak memiliki kolom 'NISN'. Sistem e-Rapor wajib menggunakan kolom NISN untuk memetakan nilai ke siswa Kelas " + kelasNama + ". Silakan unduh dan gunakan format template resmi yang telah disediakan.",
+            text: "File Excel yang Anda unggah tidak memiliki kolom 'NISN'. Sistem NilaiKu wajib menggunakan kolom NISN untuk memetakan nilai ke siswa Kelas " + kelasNama + ". Silakan unduh dan gunakan format template resmi yang telah disediakan.",
           });
           return;
         }
@@ -330,7 +330,7 @@ export default function FormImportNilaiClient({
         if (tugasIdx === -1 && utsIdx === -1 && uasIdx === -1) {
           setWarningModal({
             title: "Format Penilaian Tidak Sesuai",
-            text: "File Excel tidak memiliki kolom komponen nilai (Tugas, UTS, atau UAS). Pastikan susunan kolom penilaian sesuai dengan format template resmi e-Rapor.",
+            text: "File Excel tidak memiliki kolom komponen nilai (Tugas, UTS, atau UAS). Pastikan susunan kolom penilaian sesuai dengan format template resmi NilaiKu.",
           });
           return;
         }
@@ -878,7 +878,6 @@ export default function FormImportNilaiClient({
 
       {/* 2 Kolom Langkah Kerja */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* LANGKAH 1: Pilih Mapel & Download Template */}
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -889,10 +888,6 @@ export default function FormImportNilaiClient({
                 Pilih Mapel & Unduh Template
               </h2>
             </div>
-            <p className="text-xs text-zinc-600 leading-relaxed">
-              Pilih mata pelajaran yang nilainya akan diimpor. Template yang diunduh otomatis diawali kode mapel (contoh: <code className="font-mono bg-stone-100 px-1 py-0.5 rounded text-emerald-900 font-semibold">{selectedMapel?.kode || "BIN"}_Kelas_{kelasNama}...xlsx</code>) dan memuat NISN <strong>{siswaList.length} siswa Kelas {kelasNama}</strong>.
-            </p>
-
             <div className="mt-4 space-y-3">
               <div>
                 <label className="text-xs font-semibold text-zinc-700 block mb-1.5">
@@ -952,10 +947,6 @@ export default function FormImportNilaiClient({
                 Unggah File Excel dari Guru Mapel
               </h2>
             </div>
-            <p className="text-xs text-zinc-600 leading-relaxed">
-              Unggah file spreadsheet (`.xlsx` atau `.csv`). Sistem akan <strong>mendeteksi mapel secara otomatis dari awalan nama file</strong> dan mencocokkan nilai berdasarkan NISN.
-            </p>
-
             {/* Aturan Wajib Awalan Nama File */}
             <div className="mt-3 p-3 rounded-xl bg-sky-50/80 border border-sky-200/80 text-[11px] text-sky-950 flex items-start gap-2">
               <AlertCircleIcon className="h-4 w-4 text-sky-700 shrink-0 mt-0.5" />

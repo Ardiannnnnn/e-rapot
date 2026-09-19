@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { loginAction } from "@/actions/auth";
 
 export default function LoginPage() {
@@ -37,14 +38,21 @@ export default function LoginPage() {
       <div className="rounded-2xl border border-stone-200 bg-white p-8 shadow-sm">
         {/* Brand & Title */}
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-gradient-to-br from-[#1b4332] to-[#143225] text-white flex items-center justify-center font-bold text-lg tracking-wider shadow-xs">
-            ER
+          <div className="mx-auto h-14 w-14 rounded-2xl overflow-hidden shadow-xs border border-stone-200 bg-[#1b4332] flex items-center justify-center p-0.5">
+            <Image
+              src="/logo.webp"
+              alt="Logo NilaiKu"
+              width={56}
+              height={56}
+              className="w-full h-full object-cover rounded-[14px]"
+              priority
+            />
           </div>
           <h1 className="mt-4 text-xl font-bold tracking-tight text-zinc-900 font-poppins">
-            Masuk Portal E-Rapor
+            Masuk Portal NilaiKu
           </h1>
           <p className="mt-1 text-xs text-zinc-500 font-sans">
-            Sistem Informasi Rapor SD • Kurikulum Merdeka
+            Sistem Penilaian & Rapor Digital Sekolah
           </p>
         </div>
 

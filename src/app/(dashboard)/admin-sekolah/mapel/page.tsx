@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import FormMapel, { MapelItem } from "./form-mapel";
 
 export default function AdminMapelPage() {
@@ -13,9 +13,15 @@ export default function AdminMapelPage() {
 }
 
 async function AdminMapelContent() {
-  await requireUser();
+  const user = await requireRole(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   const mapelListRaw = await prisma.mataPelajaran.findMany({
+    where: user.role === "SUPER_ADMIN" ? {} : {
+      OR: [
+        { sekolahId: user.sekolahId },
+        { sekolahId: null },
+      ],
+    },
     include: {
       _count: {
         select: {

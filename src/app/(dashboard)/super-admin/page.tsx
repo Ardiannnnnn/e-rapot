@@ -88,7 +88,7 @@ async function SuperAdminDashboardContent() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-stone-100">
           <div>
             <h2 className="text-base font-bold text-zinc-900 font-poppins">Daftar Sekolah Binaan</h2>
-            <p className="text-xs text-zinc-500">Daftar instansi penyewa yang terdaftar di sistem e-raport</p>
+            <p className="text-xs text-zinc-500">Daftar instansi penyewa yang terdaftar di sistem NilaiKu</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link

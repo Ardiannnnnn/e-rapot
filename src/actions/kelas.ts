@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireActionUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { sanitizeInput } from "@/lib/sanitize";
 
@@ -16,7 +16,7 @@ export async function createKelasAction(payload: {
     semester?: number;
   }[];
 }) {
-  const user = await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { nama, tingkat, tahunAjaran, waliKelasId, mapelPengampu } = payload;
 
   const cleanNama = sanitizeInput(nama || "", 20).toUpperCase();
@@ -40,12 +40,15 @@ export async function createKelasAction(payload: {
   }
 
   try {
-    const existing = await prisma.kelas.findUnique({
-      where: { nama: cleanNama },
+    const existing = await prisma.kelas.findFirst({
+      where: {
+        nama: cleanNama,
+        sekolahId: user.sekolahId || undefined,
+      },
     });
 
     if (existing) {
-      return { success: false, message: `Rombel '${cleanNama}' sudah terdaftar.` };
+      return { success: false, message: `Rombel '${cleanNama}' sudah terdaftar di sekolah ini.` };
     }
 
     // Jika waliKelasId dipilih, cek apakah guru sudah menjadi wali kelas di rombel lain
@@ -133,7 +136,7 @@ export async function updateKelasAction(payload: {
     semester?: number;
   }[];
 }) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
   const { id, nama, tingkat, waliKelasId, mapelPengampu } = payload;
 
   const cleanNama = sanitizeInput(nama || "", 20).toUpperCase();
@@ -169,25 +172,30 @@ export async function updateKelasAction(payload: {
   }
 
   try {
-    // Cek duplikasi nama
-    const existing = await prisma.kelas.findFirst({
-      where: {
-        nama: cleanNama,
-        NOT: { id },
-      },
-    });
-
-    if (existing) {
-      return { success: false, message: `Rombel '${cleanNama}' sudah digunakan.` };
-    }
-
-    // Ambil data kelas lama untuk cek perubahan wali kelas
+    // Ambil data kelas lama untuk validasi kepemilikan tenant
     const oldKelas = await prisma.kelas.findUnique({
       where: { id },
     });
 
     if (!oldKelas) {
       return { success: false, message: "Data rombel tidak ditemukan." };
+    }
+
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && oldKelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Rombel ini bukan milik sekolah Anda." };
+    }
+
+    // Cek duplikasi nama dalam lingkup sekolah ini
+    const existing = await prisma.kelas.findFirst({
+      where: {
+        nama: cleanNama,
+        sekolahId: oldKelas.sekolahId,
+        NOT: { id },
+      },
+    });
+
+    if (existing) {
+      return { success: false, message: `Rombel '${cleanNama}' sudah digunakan di sekolah ini.` };
     }
 
     if (waliKelasId && waliKelasId !== oldKelas.waliKelasId) {
@@ -303,9 +311,21 @@ export async function updateKelasAction(payload: {
 }
 
 export async function deleteKelasAction(id: string) {
-  await requireUser();
+  const user = await requireActionUser(["ADMIN_SEKOLAH", "ADMIN", "SUPER_ADMIN"]);
 
   try {
+    const existingKelas = await prisma.kelas.findUnique({
+      where: { id },
+    });
+
+    if (!existingKelas) {
+      return { success: false, message: "Rombel tidak ditemukan." };
+    }
+
+    if (user.role !== "SUPER_ADMIN" && user.sekolahId && existingKelas.sekolahId !== user.sekolahId) {
+      return { success: false, message: "Akses ditolak: Rombel ini bukan milik sekolah Anda." };
+    }
+
     const countSiswa = await prisma.siswa.count({
       where: { kelasId: id },
     });

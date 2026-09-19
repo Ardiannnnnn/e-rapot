@@ -61,13 +61,12 @@ export async function updateBobotPengampuAction(input: UpdateBobotPengampuInput)
       return { success: false, message: "Data penugasan pengampu tidak ditemukan." };
     }
 
-    // Validasi hak akses: Pengampu sendiri, Wali kelas rombel ini, atau Admin
+    // Validasi hak akses: Pengampu sendiri, Wali kelas rombel ini, atau Admin di sekolah yang sama
     const isGuruPengampu = pengampu.guruId === user.id;
     const isWaliKelas = pengampu.kelas.waliKelasId === user.id;
     const isAdmin =
-      user.role === "ADMIN_SEKOLAH" ||
-      user.role === "ADMIN" ||
-      user.role === "SUPER_ADMIN";
+      (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN" || user.role === "SUPER_ADMIN") &&
+      (!user.sekolahId || pengampu.kelas.sekolahId === user.sekolahId);
 
     if (!isGuruPengampu && !isWaliKelas && !isAdmin) {
       return {
@@ -162,9 +161,8 @@ export async function updatePengaturanKelasAction(input: UpdatePengaturanKelasIn
 
     const isWali = kelas.waliKelasId === user.id;
     const isAdmin =
-      user.role === "ADMIN_SEKOLAH" ||
-      user.role === "ADMIN" ||
-      user.role === "SUPER_ADMIN";
+      (user.role === "ADMIN_SEKOLAH" || user.role === "ADMIN" || user.role === "SUPER_ADMIN") &&
+      (!user.sekolahId || kelas.sekolahId === user.sekolahId);
 
     if (!isWali && !isAdmin) {
       return {

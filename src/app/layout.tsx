@@ -4,8 +4,11 @@ import { poppins, fontMono, fontSans } from "@/lib/fonts";
 
 
 export const metadata: Metadata = {
-  title: "E-Rapor Digital | Sistem Penilaian Siswa",
-  description: "Portal manajemen nilai dan capaian hasil belajar siswa",
+  title: "NilaiKu | Platform Rapor & Penilaian Digital",
+  description: "Platform all-in-one pengelolaan nilai dan pencetakan rapor digital fleksibel untuk sekolah",
+  icons: {
+    icon: "/logo.webp",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
