@@ -443,9 +443,8 @@ export default function Sidebar({ user, activeClass, periodeAktif }: SidebarProp
             </form>
           </div>
 
-          <div className="mt-2 px-2 flex items-center justify-between text-[10px] text-zinc-600 font-mono">
-            <span>Rapor-SD &copy; 2026</span>
-            <span>Kemendikbud</span>
+          <div className="mt-2 px-2 text-center text-[10px] text-zinc-500 font-mono">
+            NilaiKu &copy; 2026
           </div>
         </div>
       </aside>
