@@ -22,35 +22,37 @@ async function GuruDashboardContent() {
       isAktif: true,
     },
   });
-  const currentSemester = periodeAktif?.semester || 1;
-  const currentTahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
+  const currentSemester = periodeAktif?.semester ?? null;
+  const currentTahunAjaran = periodeAktif?.tahunAjaran ?? null;
 
   // Ambil daftar kelas dan mapel yang spesifik diampu oleh guru pada semester aktif
-  const daftarPengampu = await prisma.pengampu.findMany({
-    where: {
-      guruId: user.id,
-      tahunAjaran: currentTahunAjaran,
-      OR: [
-        { semester: 0 },
-        { semester: currentSemester },
-      ],
-    },
-    include: {
-      mapel: true,
-      kelas: {
+  const daftarPengampu = (currentTahunAjaran && currentSemester !== null)
+    ? await prisma.pengampu.findMany({
+        where: {
+          guruId: user.id,
+          tahunAjaran: currentTahunAjaran,
+          OR: [
+            { semester: 0 },
+            { semester: currentSemester },
+          ],
+        },
         include: {
-          _count: {
-            select: { siswa: true },
+          mapel: true,
+          kelas: {
+            include: {
+              _count: {
+                select: { siswa: true },
+              },
+            },
           },
         },
-      },
-    },
-    orderBy: [
-      { kelas: { tingkat: "asc" } },
-      { kelas: { nama: "asc" } },
-      { mapel: { nama: "asc" } },
-    ],
-  });
+        orderBy: [
+          { kelas: { tingkat: "asc" } },
+          { kelas: { nama: "asc" } },
+          { mapel: { nama: "asc" } },
+        ],
+      })
+    : [];
 
   // Hitung metrik spesifik guru
   const totalRombel = new Set(daftarPengampu.map((p) => p.kelasId)).size;
@@ -69,18 +71,38 @@ async function GuruDashboardContent() {
             <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-medium backdrop-blur-sm font-mono">
               Portal Guru • Kurikulum Merdeka
             </span>
-            <span className="inline-block px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-100 text-xs font-bold backdrop-blur-sm border border-emerald-300/30 font-mono">
-              T.A. {currentTahunAjaran} • Semester {currentSemester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
-            </span>
+            {periodeAktif ? (
+              <span className="inline-block px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-100 text-xs font-bold backdrop-blur-sm border border-emerald-300/30 font-mono">
+                T.A. {periodeAktif.tahunAjaran} • Semester {periodeAktif.semester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
+              </span>
+            ) : (
+              <span className="inline-block px-3 py-1 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold backdrop-blur-sm border border-amber-300/30 font-mono">
+                ⚠️ Belum Ada Tahun Ajaran Aktif
+              </span>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
             Selamat Bertugas, {user.name}! 📝
           </h1>
           <p className="mt-1.5 text-sm text-emerald-100/90 max-w-xl">
-            Kelola penilaian capaian pembelajaran untuk setiap rombongan belajar dan mata pelajaran yang Anda ampu pada semester aktif ({currentSemester === 1 ? "Ganjil" : "Genap"}).
+            {periodeAktif
+              ? `Kelola penilaian capaian pembelajaran untuk setiap rombongan belajar dan mata pelajaran yang Anda ampu pada semester aktif (${periodeAktif.semester === 1 ? "Ganjil" : "Genap"}).`
+              : "Tahun ajaran & semester belum diaktifkan oleh Administrator Sekolah. Penugasan mengajar dan pengisian nilai akan aktif setelah periode akademik diatur."}
           </p>
         </div>
       </div>
+
+      {!periodeAktif && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-xs text-amber-900 flex items-center gap-3 shadow-xs">
+          <span className="text-xl shrink-0">⚠️</span>
+          <div>
+            <p className="font-bold text-amber-950">Tahun Ajaran Belum Diatur</p>
+            <p className="text-amber-800 text-[11px] mt-0.5">
+              Admin Sekolah belum mengaktifkan Tahun Ajaran & Semester. Silakan hubungi Administrator/Operator Sekolah agar membuka periode akademik aktif.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Kartu Ringkasan Guru (Spesifik Pengampu) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

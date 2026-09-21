@@ -40,8 +40,8 @@ async function AdminDashboardContent() {
     }),
   ]);
 
-  const currentTahunAjaran = periodeAktif?.tahunAjaran || "2026/2027";
-  const currentSemester = periodeAktif?.semester || 1;
+  const currentTahunAjaran = periodeAktif?.tahunAjaran ?? null;
+  const currentSemester = periodeAktif?.semester ?? null;
 
   return (
     <div className="space-y-8">
@@ -52,15 +52,41 @@ async function AdminDashboardContent() {
             <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-medium backdrop-blur-sm font-mono">
               Panel Administrator Sekolah
             </span>
-            <span className="inline-block px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-100 text-xs font-bold backdrop-blur-sm border border-emerald-300/30 font-mono">
-              T.A. {currentTahunAjaran} • Semester {currentSemester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
-            </span>
+            {periodeAktif ? (
+              <span className="inline-block px-3 py-1 rounded-full bg-emerald-400/20 text-emerald-100 text-xs font-bold backdrop-blur-sm border border-emerald-300/30 font-mono">
+                T.A. {periodeAktif.tahunAjaran} • Semester {periodeAktif.semester === 1 ? "1 (Ganjil)" : "2 (Genap)"}
+              </span>
+            ) : (
+              <span className="inline-block px-3 py-1 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold backdrop-blur-sm border border-amber-300/30 font-mono">
+                ⚠️ Belum Ada Tahun Ajaran Aktif
+              </span>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold font-poppins">
             Selamat Datang, {user.name}! 
           </h1>
         </div>
       </div>
+
+      {!periodeAktif && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-4 sm:p-5 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-start sm:items-center gap-3">
+            <span className="text-2xl shrink-0">⚠️</span>
+            <div>
+              <p className="font-bold text-amber-950 text-sm">Perhatian: Tahun Ajaran Belum Diatur</p>
+              <p className="text-amber-800 text-xs mt-0.5">
+                Sekolah Anda belum memiliki Tahun Ajaran dan Semester aktif. Pembagian rapor, penugasan guru, dan input nilai memerlukan periode akademik yang aktif.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin-sekolah/tahun-ajaran"
+            className="px-4 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-semibold text-xs transition shrink-0 inline-flex items-center gap-1.5"
+          >
+            Atur Tahun Ajaran &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* Kartu Ringkasan Statistik */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

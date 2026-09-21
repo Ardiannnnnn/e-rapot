@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import Sidebar from "@/components/shared/sidebar";
 import DashboardHeader from "@/components/shared/dashboard-header";
 import { ToastProvider } from "@/components/shared/toast";
@@ -17,14 +18,22 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const assignedClass = user.kelasWali ? `Kelas ${user.kelasWali.nama}` : "Kelas 4-A";
+  // 2. Ambil periode akademik aktif sekolah
+  const periodeAktif = user.sekolahId
+    ? await prisma.periodeAkademik.findFirst({
+        where: { sekolahId: user.sekolahId, isAktif: true },
+        select: { tahunAjaran: true, semester: true },
+      })
+    : null;
+
+  const assignedClass = user.kelasWali ? `Kelas ${user.kelasWali.nama}` : "";
 
   return (
     <ToastProvider>
       <div className="min-h-screen bg-[#fcfbf9] text-zinc-900 selection:bg-[#1b4332] selection:text-emerald-100 flex flex-col lg:flex-row print:block print:bg-white print:p-0 print:m-0">
         {/* Navigasi Sidebar Bersama */}
         <div className="print:hidden">
-          <Sidebar user={user} activeClass={assignedClass} />
+          <Sidebar user={user} activeClass={assignedClass} periodeAktif={periodeAktif} />
         </div>
 
         {/* Konten Utama Kanan */}

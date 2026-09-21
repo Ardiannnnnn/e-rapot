@@ -10,9 +10,13 @@ import { SessionUser, MenuItem, MenuGroup, Role } from "@/types";
 interface SidebarProps {
   user: SessionUser;
   activeClass?: string;
+  periodeAktif?: {
+    tahunAjaran: string;
+    semester: number;
+  } | null;
 }
 
-export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProps) {
+export default function Sidebar({ user, activeClass, periodeAktif }: SidebarProps) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -321,21 +325,32 @@ export default function Sidebar({ user, activeClass = "Kelas 4-A" }: SidebarProp
             </div>
 
             {/* Context Badge */}
-            <div className="mt-4 p-2.5 rounded-xl bg-[#f8f7f4] border border-stone-200/80">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-zinc-500 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Semester Ganjil
-                </span>
-                <span className="font-mono font-medium text-zinc-700">2026/2027</span>
-              </div>
-              {isWaliKelas && !isGuruMode && (
-                <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500">Rombel Binaan:</span>
-                  <span className="font-semibold text-[#1b4332] font-mono">{activeClass}</span>
+            {role !== "SUPER_ADMIN" && (
+              <div className="mt-4 p-2.5 rounded-xl bg-[#f8f7f4] border border-stone-200/80">
+                <div className="flex items-center justify-between text-[11px]">
+                  {periodeAktif ? (
+                    <>
+                      <span className="text-zinc-600 flex items-center gap-1.5 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Semester {periodeAktif.semester === 1 ? "Ganjil" : "Genap"}
+                      </span>
+                      <span className="font-mono font-semibold text-[#1b4332]">{periodeAktif.tahunAjaran}</span>
+                    </>
+                  ) : (
+                    <span className="text-amber-700 flex items-center gap-1.5 text-[11px] font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      T.A. Belum Diatur
+                    </span>
+                  )}
                 </div>
-              )}
-            </div>
+                {isWaliKelas && !isGuruMode && activeClass && (
+                  <div className="mt-1.5 pt-1.5 border-t border-stone-200/60 flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-500">Rombel Binaan:</span>
+                    <span className="font-semibold text-[#1b4332] font-mono">{activeClass}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Navigation Links */}
