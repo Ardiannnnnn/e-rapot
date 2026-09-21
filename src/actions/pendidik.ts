@@ -17,11 +17,11 @@ export async function createGuruAction(payload: {
 
   const cleanName = sanitizeInput(name || "", 100);
   const cleanEmail = (email || "").trim().toLowerCase();
-  const cleanPassword = password?.trim() || "password123";
+  const cleanPassword = password?.trim() || "";
 
   // 1. Validasi Kolom Wajib
-  if (!cleanName || !cleanEmail) {
-    return { success: false, message: "Nama lengkap dan email akun login wajib diisi." };
+  if (!cleanName || !cleanEmail || !cleanPassword) {
+    return { success: false, message: "Nama lengkap, email, dan kata sandi login wajib diisi." };
   }
 
   // 2. Proteksi Anti-XSS (Karakter tag HTML < atau >)

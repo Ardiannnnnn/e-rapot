@@ -41,7 +41,7 @@ export default function FormPendidik({
   const [isAddGuruOpen, setIsAddGuruOpen] = useState(false);
   const [guruName, setGuruName] = useState("");
   const [guruEmail, setGuruEmail] = useState("");
-  const [guruPassword, setGuruPassword] = useState("password123");
+  const [guruPassword, setGuruPassword] = useState("");
   const [showGuruPassword, setShowGuruPassword] = useState(false);
   const [guruSubmitted, setGuruSubmitted] = useState(false);
   const [guruTouched, setGuruTouched] = useState({
@@ -195,7 +195,10 @@ export default function FormPendidik({
   };
 
   const getGuruPasswordError = (val: string) => {
-    if (val && val.length < 6) {
+    if (!val) {
+      return (guruSubmitted || guruTouched.password) ? "Kata sandi wajib diisi." : "";
+    }
+    if (val.length < 6) {
       return "Kata sandi minimal harus terdiri dari 6 karakter.";
     }
     return "";
@@ -204,7 +207,7 @@ export default function FormPendidik({
   const handleOpenAddGuru = () => {
     setGuruName("");
     setGuruEmail("");
-    setGuruPassword("password123");
+    setGuruPassword("");
     setShowGuruPassword(false);
     setGuruSubmitted(false);
     setGuruTouched({ name: false, email: false, password: false });
@@ -238,7 +241,7 @@ export default function FormPendidik({
         toast.success(res.message);
         setGuruName("");
         setGuruEmail("");
-        setGuruPassword("password123");
+        setGuruPassword("");
         setIsAddGuruOpen(false);
       } else {
         setGuruFormError(res.message);
@@ -947,12 +950,12 @@ export default function FormPendidik({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold text-zinc-700">
-                    Password Awal
+                    Kata Sandi <span className="text-rose-500">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowGuruPassword(!showGuruPassword)}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-800"
+                    className="text-[11px] text-zinc-500 hover:text-zinc-800 cursor-pointer"
                   >
                     {showGuruPassword ? "Sembunyikan" : "Tampilkan"}
                   </button>
@@ -965,6 +968,7 @@ export default function FormPendidik({
                     setGuruTouched((p) => ({ ...p, password: true }));
                   }}
                   onBlur={() => setGuruTouched((p) => ({ ...p, password: true }))}
+                  placeholder="Masukkan kata sandi guru (min. 6 karakter)"
                   className={`w-full rounded-xl border px-3 py-2 text-xs font-mono text-zinc-900 focus:outline-none transition ${
                     getGuruPasswordError(guruPassword)
                       ? "border-rose-400 bg-rose-50/40 focus:ring-2 focus:ring-rose-200"
@@ -976,8 +980,8 @@ export default function FormPendidik({
                     {getGuruPasswordError(guruPassword)}
                   </p>
                 ) : (
-                  <span className="block text-[11px] text-zinc-600 mt-1">
-                    Default: password123 (Minimal 6 karakter)
+                  <span className="block text-[11px] text-zinc-500 mt-1">
+                    Minimal 6 karakter
                   </span>
                 )}
               </div>
