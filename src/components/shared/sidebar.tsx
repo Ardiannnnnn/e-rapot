@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -19,6 +19,7 @@ interface SidebarProps {
 export default function Sidebar({ user, activeClass, periodeAktif }: SidebarProps) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isPendingLogout, startLogout] = useTransition();
 
   const role = user.role;
 
@@ -431,16 +432,20 @@ export default function Sidebar({ user, activeClass, periodeAktif }: SidebarProp
               </div>
             </div>
 
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                title="Keluar dari Aplikasi"
-                aria-label="Logout"
-                className="p-1.5 rounded-lg text-zinc-600 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition"
-              >
+            <button
+              type="button"
+              title="Keluar dari Aplikasi"
+              aria-label="Logout"
+              disabled={isPendingLogout}
+              onClick={() => startLogout(() => { logoutAction(); })}
+              className="p-1.5 rounded-lg text-zinc-600 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isPendingLogout ? (
+                <span className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin block" />
+              ) : (
                 <LogOutIcon className="w-4 h-4" />
-              </button>
-            </form>
+              )}
+            </button>
           </div>
 
           <div className="mt-2 px-2 text-center text-[10px] text-zinc-500 font-mono">
