@@ -39,7 +39,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       } else {
         onClose();
         router.push(res.redirectUrl || "/dashboard");
-        router.refresh();
       }
     } catch {
       setError("Terjadi kesalahan pada server.");
