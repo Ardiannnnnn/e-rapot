@@ -27,9 +27,6 @@ export default function NetworkHero() {
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 font-poppins">
-            NilaiKu
-          </h1>
           <p className="text-xs text-zinc-500 font-medium mt-0.5">
             All-in-one Platform Rapor & Penilaian Sekolah
           </p>
@@ -46,11 +43,6 @@ export default function NetworkHero() {
                     💡
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[9px] font-bold font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                        Adaptif
-                      </span>
-                    </div>
                     <h4 className="text-xs font-bold text-zinc-900 leading-snug">
                       Menyesuaikan Kurikulum
                     </h4>
@@ -72,11 +64,6 @@ export default function NetworkHero() {
                     📊
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[9px] font-bold font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200">
-                        Kompatibel
-                      </span>
-                    </div>
                     <h4 className="text-xs font-bold text-zinc-900 leading-snug">
                       Smart Excel Importer
                     </h4>
@@ -98,11 +85,6 @@ export default function NetworkHero() {
                     ⚡
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[9px] font-bold font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-50 text-orange-800 border border-orange-200">
-                        Efisiensi
-                      </span>
-                    </div>
                     <h4 className="text-xs font-bold text-zinc-900 leading-snug">
                       85% Lebih Cepat & Otomatis
                     </h4>
@@ -124,11 +106,6 @@ export default function NetworkHero() {
                     🖨️
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[9px] font-bold font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        Publikasi
-                      </span>
-                    </div>
                     <h4 className="text-xs font-bold text-zinc-900 leading-snug">
                       1-Klik Cetak Rapor Rapi
                     </h4>
@@ -227,11 +204,6 @@ export default function NetworkHero() {
                     💡
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-[10px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
-                        Adaptif
-                      </span>
-                    </div>
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-900 leading-snug">
                       Menyesuaikan Kurikulum
                     </h3>
@@ -248,11 +220,6 @@ export default function NetworkHero() {
                     📊
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-[10px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
-                        Kompatibel
-                      </span>
-                    </div>
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-900 leading-snug">
                       Smart Excel Importer
                     </h3>
@@ -280,10 +247,6 @@ export default function NetworkHero() {
                   </div>
                 </div>
               </div>
-
-              <span className="mt-2.5 text-[11px] font-bold font-mono text-emerald-950 bg-emerald-50 px-3 py-0.5 rounded-full border border-emerald-200/80 shadow-2xs">
-                NilaiKu
-              </span>
             </div>
 
             <div className="flex flex-col gap-6 items-start">
@@ -293,11 +256,6 @@ export default function NetworkHero() {
                     ⚡
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-[10px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-orange-50 text-orange-800 border border-orange-200">
-                        Efisiensi
-                      </span>
-                    </div>
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-900 leading-snug">
                       85% Lebih Cepat & Otomatis
                     </h3>
@@ -314,11 +272,6 @@ export default function NetworkHero() {
                     🖨️
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-[10px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        Publikasi
-                      </span>
-                    </div>
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-900 leading-snug">
                       1-Klik Cetak Rapor Rapi
                     </h3>
