@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { PrinterIcon, UsersIcon, UserIcon, ArrowLeftIcon, FileDownIcon } from "@/components/shared/icons";
 import Link from "next/link";
 import LembarRapor from "./lembar-rapor";
 import { CetakRaporClientProps, LembarRaporData } from "@/types/wali-kelas/cetak";
+import { SelectSiswaCombobox } from "@/components/shared/select-siswa-combobox";
 
 export default function CetakRaporClient({
   kelasNama,
@@ -15,6 +16,16 @@ export default function CetakRaporClient({
 }: CetakRaporClientProps) {
   // "ALL" untuk Cetak Semua Sekaligus, atau id siswa
   const [selectedMode, setSelectedMode] = useState<string>("ALL");
+
+  const siswaOptions = useMemo(
+    () =>
+      raporList.map((r) => ({
+        id: r.siswa.id,
+        nama: r.siswa.nama,
+        nisn: r.siswa.nisn || "-",
+      })),
+    [raporList]
+  );
 
   const handlePrint = () => {
     window.print();
@@ -63,26 +74,15 @@ export default function CetakRaporClient({
 
         {/* Toolbar Pilihan Cetak */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 rounded-2xl border border-stone-200 bg-white shadow-xs">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 shrink-0">
               Mode Cetak:
             </span>
-            <select
-              value={selectedMode}
-              onChange={(e) => setSelectedMode(e.target.value)}
-              className="px-3.5 py-2 text-sm font-medium rounded-xl border border-stone-200 bg-stone-50 focus:outline-hidden focus:ring-2 focus:ring-[#1b4332]"
-            >
-              <option value="ALL">
-                📄 Cetak Semua Siswa Sekelas ({raporList.length} Siswa - Bulk Print)
-              </option>
-              <optgroup label="Pilih Individu Siswa">
-                {raporList.map((r, idx) => (
-                  <option key={r.siswa.id} value={r.siswa.id}>
-                    {idx + 1}. {r.siswa.nama} ({r.siswa.nisn})
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+            <SelectSiswaCombobox
+              siswaList={siswaOptions}
+              selectedId={selectedMode}
+              onChange={setSelectedMode}
+            />
           </div>
 
           <div className="text-xs text-zinc-600 flex items-center gap-2">

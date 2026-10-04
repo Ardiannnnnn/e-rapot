@@ -98,11 +98,16 @@ export function ModalTambahTemplate({
             {activeTab !== "EKSKUL" && (
               <div className="space-y-1">
                 <label className="text-xs font-bold text-zinc-700 block">
-                  Judul / Label Singkat (Opsional)
+                  {activeTab === "TEMA_P5" ? "Nomor & Judul Tema *" : "Judul / Label Singkat (Opsional)"}
                 </label>
                 <input
                   type="text"
-                  placeholder="Contoh: Tema 4 : Kewirausahaan"
+                  required={activeTab === "TEMA_P5"}
+                  placeholder={
+                    activeTab === "TEMA_P5"
+                      ? "Contoh: Tema 4 : Kewirausahaan ( Mengolah Makanan Tradisional )"
+                      : "Contoh: Pilihan 1"
+                  }
                   value={formJudul}
                   onChange={(e) => setFormJudul(e.target.value)}
                   className="w-full p-2.5 border border-stone-300 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500"
@@ -114,12 +119,18 @@ export function ModalTambahTemplate({
               <label className="text-xs font-bold text-zinc-700 block">
                 {activeTab === "EKSKUL"
                   ? "Nama Kegiatan Ekstrakurikuler *"
+                  : activeTab === "TEMA_P5"
+                  ? "Isi Narasi Capaian Projek *"
                   : "Isi Deskripsi / Teks Lengkap *"}
               </label>
               <textarea
                 rows={activeTab === "EKSKUL" ? 2 : 4}
                 required
-                placeholder={placeholderTeks}
+                placeholder={
+                  activeTab === "TEMA_P5"
+                    ? "Contoh: Menunjukkan pemahaman dan kreativitas dalam mengolah makanan tradisional khas daerah secara gotong royong."
+                    : placeholderTeks
+                }
                 value={formTeks}
                 onChange={(e) => setFormTeks(e.target.value)}
                 className="w-full p-2.5 border border-stone-300 rounded-xl text-xs leading-relaxed focus:ring-1 focus:ring-emerald-500"

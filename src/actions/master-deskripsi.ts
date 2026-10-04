@@ -6,9 +6,18 @@ import { revalidatePath } from "next/cache";
 import { sanitizeInput } from "@/lib/sanitize";
 
 const DEFAULT_TEMA_P5_INIT = [
-  "Tema 1 : Kreasi Nusantara ( Membuat Batik Sederhana )",
-  "Tema 2 : Peduli Terhadap Lingkungan Sekitar ( Mengolah Sampah Organik Dan Non Organik )",
-  "Tema 3 : Bangunlah Jiwa Dan Raganya ( Menanam Tanaman Obat Keluarga )",
+  {
+    judul: "Tema 1 : Kreasi Nusantara ( Membuat Batik Sederhana )",
+    teks: "Menunjukkan pemahaman dalam melestarikan budaya nusantara melalui pembuatan batik sederhana dengan penuh ketelitian dan kreativitas.",
+  },
+  {
+    judul: "Tema 2 : Peduli Terhadap Lingkungan Sekitar ( Mengolah Sampah Organik Dan Non Organik )",
+    teks: "Memiliki kepedulian tinggi terhadap lingkungan hidup dengan aktif memilah dan mendaur ulang sampah organik serta anorganik di lingkungan sekolah.",
+  },
+  {
+    judul: "Tema 3 : Bangunlah Jiwa Dan Raganya ( Menanam Tanaman Obat Keluarga )",
+    teks: "Menunjukkan antusiasme dan tanggung jawab dalam merawat tanaman obat keluarga serta memahami khasiatnya bagi kesehatan tubuh.",
+  },
 ];
 
 const DEFAULT_KEBIASAAN_INIT = [
@@ -71,8 +80,8 @@ export async function getTemplateRaporAction(kelasId: string, tahunAjaran: strin
         initData.push({
           kelasId,
           kategori: "TEMA_P5",
-          judul: `Tema ${idx + 1}`,
-          teks: tema,
+          judul: tema.judul,
+          teks: tema.teks,
           urutan: idx + 1,
           tahunAjaran,
           semester,
@@ -130,6 +139,8 @@ export async function getTemplateRaporAction(kelasId: string, tahunAjaran: strin
     } else {
       // Jika template sudah ada tapi belum ada kategori EKSKUL, tambahkan inisialisasi ekskul
       const hasEkskul = templates.some((t) => t.kategori === "EKSKUL");
+      let needRefetch = false;
+
       if (!hasEkskul) {
         const ekskulInitData = DEFAULT_EKSKUL_INIT.map((ekskul, idx) => ({
           kelasId,
@@ -144,7 +155,44 @@ export async function getTemplateRaporAction(kelasId: string, tahunAjaran: strin
         await prisma.templateRapor.createMany({
           data: ekskulInitData,
         });
+        needRefetch = true;
+      }
 
+      // Cek apakah template TEMA_P5 lama perlu penyesuaian judul & teks narasi
+      const temaP5Old = templates.filter(
+        (t) => t.kategori === "TEMA_P5" && (t.judul?.match(/^Tema \d+$/i) || !t.judul) && t.teks.startsWith("Tema ")
+      );
+      if (temaP5Old.length > 0) {
+        for (const oldItem of temaP5Old) {
+          const matchingInit = DEFAULT_TEMA_P5_INIT.find(
+            (init) =>
+              init.judul.toLowerCase().includes(oldItem.teks.toLowerCase()) ||
+              oldItem.teks.toLowerCase().includes(init.judul.toLowerCase())
+          );
+          if (matchingInit) {
+            await prisma.templateRapor.update({
+              where: { id: oldItem.id },
+              data: {
+                judul: matchingInit.judul,
+                teks: matchingInit.teks,
+              },
+            });
+            oldItem.judul = matchingInit.judul;
+            oldItem.teks = matchingInit.teks;
+          } else {
+            await prisma.templateRapor.update({
+              where: { id: oldItem.id },
+              data: {
+                judul: oldItem.teks,
+              },
+            });
+            oldItem.judul = oldItem.teks;
+          }
+        }
+        needRefetch = true;
+      }
+
+      if (needRefetch) {
         templates = await prisma.templateRapor.findMany({
           where: {
             kelasId,
@@ -385,8 +433,8 @@ export async function resetDefaultTemplateAction(kelasId: string, tahunAjaran: s
       initData.push({
         kelasId,
         kategori: "TEMA_P5",
-        judul: `Tema ${idx + 1}`,
-        teks: tema,
+        judul: tema.judul,
+        teks: tema.teks,
         urutan: idx + 1,
         tahunAjaran,
         semester,

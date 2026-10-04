@@ -108,8 +108,8 @@ async function PelengkapContent() {
       statusKenaikan: p?.statusKenaikan ?? "",
       isPresensiSaved: !!p,
       isEkskulSaved: !!(p && p.ekskul !== null),
-      isKokurikulerSaved: !!(p && p.kokurikuler && kokurikulerParsed.length > 0),
-      isKebiasaanSaved: !!(p && p.kebiasaanKarakter && p.kebiasaanKarakter.trim().length > 0),
+      isKokurikulerSaved: !!(p && p.kokurikuler !== null),
+      isKebiasaanSaved: !!(p && p.kebiasaanKarakter !== null),
       isKenaikanSaved: semester === 2
         ? !!(p && p.statusKenaikan && p.statusKenaikan.trim().length > 0)
         : true,

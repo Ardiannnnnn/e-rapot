@@ -148,21 +148,7 @@ async function CetakContent(props: {
     orderBy: { kode: "asc" },
   });
 
-  // 6. Ambil master template rapor untuk kelas ini (Tema P5, Kebiasaan, Saran)
-  const masterTemplates = await prisma.templateRapor.findMany({
-    where: {
-      kelasId: kelas.id,
-      tahunAjaran,
-      semester,
-    },
-    orderBy: { urutan: "asc" },
-  });
-
-  const masterTemaP5 = masterTemplates.filter((t) => t.kategori === "TEMA_P5");
-  const masterKebiasaan = masterTemplates.filter((t) => t.kategori === "KEBIASAAN");
-  const masterSaran = masterTemplates.filter((t) => t.kategori === "SARAN_WALI");
-
-  // 7. Ambil seluruh siswa beserta nilai dan data pelengkap
+  // 6. Ambil seluruh siswa beserta nilai dan data pelengkap
   const siswaList = await prisma.siswa.findMany({
     where: { kelasId: kelas.id },
     include: {
@@ -295,32 +281,14 @@ async function CetakContent(props: {
       }
     }
 
-    // Jika belum ada data kokurikuler yang tersimpan spesifik per siswa tapi ada master tema P5 di kelas ini
-    let finalKokurikuler = kokurikulerParsed;
-    if (finalKokurikuler.length === 0 && masterTemaP5.length > 0) {
-      finalKokurikuler = masterTemaP5.map((t) => {
-        const cleanTema = t.teks
-          .replace(/^Tema\s*\d+\s*:\s*/i, "")
-          .replace(/[()]/g, "")
-          .trim();
-        return {
-          tema: t.teks,
-          deskripsi: `${s.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiatan ${cleanTema}`,
-        };
-      });
-    }
+    // Kokurikuler yang tersimpan riil per siswa
+    const finalKokurikuler = kokurikulerParsed;
 
-    // Kebiasaan Karakter
-    let finalKebiasaan = p?.kebiasaanKarakter?.trim() || null;
-    if (!finalKebiasaan && masterKebiasaan.length > 0) {
-      finalKebiasaan = `${s.nama.toUpperCase()} ${masterKebiasaan[0].teks}`;
-    }
+    // Kebiasaan Karakter riil per siswa
+    const finalKebiasaan = p?.kebiasaanKarakter?.trim() || null;
 
-    // Catatan / Saran Wali Kelas
-    let finalCatatanWali = p?.catatanWali?.trim() || null;
-    if (!finalCatatanWali && masterSaran.length > 0) {
-      finalCatatanWali = masterSaran[0].teks;
-    }
+    // Catatan / Saran Wali Kelas riil per siswa
+    const finalCatatanWali = p?.catatanWali?.trim() || null;
 
     // Peringkat siswa yang adil berdasarkan nilai & absensi
     const peringkat = rankingMap.get(s.id) || 1;

@@ -43,21 +43,27 @@ export function TabPresensi({
   onRevertAll,
 }: TabPresensiProps) {
   const [search, setSearch] = useState("");
+  const [filterUnsavedOnly, setFilterUnsavedOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   const presensiSavedCount = siswaList.filter((s) => s.isPresensiSaved).length;
-  const hasUnsavedChanges = presensiSavedCount < siswaList.length;
+  const unsavedCount = siswaList.length - presensiSavedCount;
+  const hasUnsavedChanges = unsavedCount > 0;
 
   const filteredList = useMemo(() => {
-    if (!search.trim()) return siswaList;
+    let list = siswaList;
+    if (filterUnsavedOnly) {
+      list = list.filter((s) => !s.isPresensiSaved);
+    }
+    if (!search.trim()) return list;
     const q = search.toLowerCase().trim();
-    return siswaList.filter(
+    return list.filter(
       (s) =>
         s.nama.toLowerCase().includes(q) ||
         (s.nisn && s.nisn.toLowerCase().includes(q))
     );
-  }, [siswaList, search]);
+  }, [siswaList, search, filterUnsavedOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -76,19 +82,35 @@ export function TabPresensi({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold shadow-2xs">
-            {presensiSavedCount === siswaList.length ? (
+          {unsavedCount === 0 ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold shadow-2xs">
               <span className="inline-flex items-center gap-1 text-emerald-700">
                 <CheckCircle2Icon className="h-4 w-4 text-emerald-600" />
                 Semua Tersimpan ({presensiSavedCount}/{siswaList.length})
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-rose-600">
-                <XCircleIcon className="h-4 w-4 text-rose-500" />
-                {siswaList.length - presensiSavedCount} Belum Disimpan
-              </span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterUnsavedOnly((prev) => !prev);
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold shadow-2xs transition cursor-pointer ${
+                filterUnsavedOnly
+                  ? "bg-rose-600 text-white border-rose-600 ring-2 ring-rose-600/30"
+                  : "bg-white border-rose-200 text-rose-600 hover:bg-rose-50"
+              }`}
+              title={
+                filterUnsavedOnly
+                  ? "Klik untuk tampilkan semua siswa"
+                  : "Klik untuk langsung melihat siswa yang belum disimpan"
+              }
+            >
+              <XCircleIcon className={`h-4 w-4 ${filterUnsavedOnly ? "text-white" : "text-rose-500"}`} />
+              <span>{unsavedCount} Belum Disimpan</span>
+            </button>
+          )}
           <Link
             href="/wali-kelas/master-deskripsi"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-300 bg-white text-zinc-700 text-xs font-semibold hover:bg-stone-50 transition"
@@ -118,6 +140,27 @@ export function TabPresensi({
           </button>
         </div>
       </div>
+
+      {filterUnsavedOnly && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <span className="text-base">⚠️</span>
+            <span>
+              Menampilkan <strong>{filteredList.length} siswa</strong> yang belum disimpan.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterUnsavedOnly(false);
+              setCurrentPage(1);
+            }}
+            className="text-rose-700 font-bold hover:underline cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-rose-200 shadow-2xs"
+          >
+            ✕ Tampilkan Semua Siswa ({siswaList.length})
+          </button>
+        </div>
+      )}
 
       {/* Search & Keterangan Pagination Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">

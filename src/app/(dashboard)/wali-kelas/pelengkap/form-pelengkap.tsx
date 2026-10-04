@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   PrinterIcon,
@@ -24,6 +24,8 @@ import {
   EkskulItem,
   PelengkapTab,
   PredikatEkskul,
+  TemaP5MasterItem,
+  KokurikulerItem,
 } from "@/types/wali-kelas/pelengkap";
 import {
   TabPresensi,
@@ -34,11 +36,30 @@ import {
   ModalPickerKebiasaan,
   ModalPickerSaran,
 } from "./components";
+import { isTemaMatch, isTemaChecked } from "./components/tab-kokurikuler";
 
-const DEFAULT_TEMA_P5 = [
-  "Tema 1 : Kreasi Nusantara ( Membuat Batik Sederhana )",
-  "Tema 2 : Peduli Terhadap Lingkungan Sekitar ( Mengolah Sampah Organik Dan Non Organik )",
-  "Tema 3 : Bangunlah Jiwa Dan Raganya ( Menanam Tanaman Obat Keluarga )",
+const DEFAULT_TEMA_P5_MASTER: TemaP5MasterItem[] = [
+  {
+    id: "default-1",
+    nomor: 1,
+    judul: "Tema 1 : Kreasi Nusantara ( Membuat Batik Sederhana )",
+    deskripsi:
+      "Menunjukkan pemahaman dalam melestarikan budaya nusantara melalui pembuatan batik sederhana dengan penuh ketelitian dan kreativitas.",
+  },
+  {
+    id: "default-2",
+    nomor: 2,
+    judul: "Tema 2 : Peduli Terhadap Lingkungan Sekitar ( Mengolah Sampah Organik Dan Non Organik )",
+    deskripsi:
+      "Memiliki kepedulian tinggi terhadap lingkungan hidup dengan aktif memilah dan mendaur ulang sampah organik serta anorganik di lingkungan sekolah.",
+  },
+  {
+    id: "default-3",
+    nomor: 3,
+    judul: "Tema 3 : Bangunlah Jiwa Dan Raganya ( Menanam Tanaman Obat Keluarga )",
+    deskripsi:
+      "Menunjukkan antusiasme dan tanggung jawab dalam merawat tanaman obat keluarga serta memahami khasiatnya bagi kesehatan tubuh.",
+  },
 ];
 
 const DEFAULT_KEBIASAAN_OPTIONS = [
@@ -123,15 +144,25 @@ export default function FormPelengkapClient({
   const [saranModalSiswaId, setSaranModalSiswaId] = useState<string | null>(null);
 
   // State untuk Tema Kokurikuler Kelas (Dikelola di Master Deskripsi)
-  const [temaList] = useState<string[]>(() => {
+  const masterTemaList = useMemo<TemaP5MasterItem[]>(() => {
     if (initialTemplates?.temaP5 && initialTemplates.temaP5.length > 0) {
-      return initialTemplates.temaP5.map((t) => t.teks);
+      return initialTemplates.temaP5.map((t, idx) => {
+        let judul = t.judul || `Tema ${idx + 1}`;
+        let deskripsi = t.teks || "";
+        if (judul.match(/^Tema \d+$/i) && t.teks.startsWith("Tema ")) {
+          judul = t.teks;
+          deskripsi = t.teks;
+        }
+        return {
+          id: t.id,
+          nomor: idx + 1,
+          judul,
+          deskripsi,
+        };
+      });
     }
-    if (initialSiswaList[0]?.kokurikuler && initialSiswaList[0].kokurikuler.length > 0) {
-      return initialSiswaList[0].kokurikuler.map((k) => k.tema);
-    }
-    return DEFAULT_TEMA_P5;
-  });
+    return DEFAULT_TEMA_P5_MASTER;
+  }, [initialTemplates?.temaP5]);
 
   const isSemesterGenap = semester === 2;
   const isKelasAkhir = tingkat === 6;
@@ -241,12 +272,9 @@ export default function FormPelengkapClient({
 
     try {
       const items = siswaList.map((s) => {
-        const val =
-          s.kebiasaanKarakter ||
-          `${s.nama.toUpperCase()} Terbiasa dalam beribadah dan Belum Terbiasa dalam tidur cepat`;
         return {
           siswaId: s.id,
-          kebiasaanKarakter: val,
+          kebiasaanKarakter: s.kebiasaanKarakter,
         };
       });
 
@@ -260,12 +288,8 @@ export default function FormPelengkapClient({
       if (res.success) {
         const updater = (prev: SiswaPelengkapItem[]) =>
           prev.map((s) => {
-            const val =
-              s.kebiasaanKarakter ||
-              `${s.nama.toUpperCase()} Terbiasa dalam beribadah dan Belum Terbiasa dalam tidur cepat`;
             return {
               ...s,
-              kebiasaanKarakter: val,
               isKebiasaanSaved: true,
             };
           });
@@ -288,20 +312,17 @@ export default function FormPelengkapClient({
 
     try {
       const items = siswaList.map((s) => {
-        const kokur = temaList.map((t, idx) => {
-          const existing = s.kokurikuler.find((k) => k.tema === t) || s.kokurikuler[idx];
-          const desc =
-            existing?.deskripsi ||
-            `${s.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiatan ${t.replace(/Tema \d+ : /, "").trim()}`;
+        const finalKokur = (s.kokurikuler || []).map((k) => {
+          const matchedMaster = masterTemaList.find((m) => isTemaMatch(k, m));
           return {
-            tema: t,
-            deskripsi: desc,
+            tema: matchedMaster ? matchedMaster.judul : k.tema,
+            deskripsi: matchedMaster?.deskripsi || k.deskripsi || "",
           };
         });
 
         return {
           siswaId: s.id,
-          kokurikuler: kokur,
+          kokurikuler: finalKokur,
         };
       });
 
@@ -459,24 +480,89 @@ export default function FormPelengkapClient({
     await handleSaveIndividual(updatedStudent);
   };
 
-  // Kokurikuler Handler
-  const handleKokurikulerChange = (
-    siswaId: string,
-    temaIdx: number,
-    tema: string,
-    deskripsi: string
-  ) => {
+  // Toggle Tema Kokurikuler per Siswa
+  const handleToggleTema = (siswaId: string, masterTema: TemaP5MasterItem) => {
     setSiswaList((prev) =>
-      prev.map((item) => {
-        if (item.id !== siswaId) return item;
-        const nextKokur = [...item.kokurikuler];
-        nextKokur[temaIdx] = {
-          tema,
-          deskripsi,
+      prev.map((s) => {
+        if (s.id !== siswaId) return s;
+        const currentKokur = s.kokurikuler || [];
+        const isCurrentlyChecked = isTemaChecked(currentKokur, masterTema);
+
+        let nextKokur: KokurikulerItem[];
+        if (isCurrentlyChecked) {
+          nextKokur = currentKokur.filter((k) => !isTemaMatch(k, masterTema));
+        } else {
+          const newItem: KokurikulerItem = {
+            tema: masterTema.judul,
+            deskripsi: masterTema.deskripsi,
+          };
+          nextKokur = [
+            ...currentKokur.filter((k) => !isTemaMatch(k, masterTema)),
+            newItem,
+          ].sort((a, b) => {
+            const idxA = masterTemaList.findIndex((m) => isTemaMatch(a, m));
+            const idxB = masterTemaList.findIndex((m) => isTemaMatch(b, m));
+            return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+          });
+        }
+
+        return {
+          ...s,
+          kokurikuler: nextKokur,
+          isKokurikulerSaved: false,
         };
-        return { ...item, kokurikuler: nextKokur, isKokurikulerSaved: false };
       })
     );
+  };
+
+  // Centang Semua Tema untuk 1 Siswa
+  const handleCheckAllForStudent = (siswaId: string) => {
+    setSiswaList((prev) =>
+      prev.map((s) => {
+        if (s.id !== siswaId) return s;
+        const nextKokur: KokurikulerItem[] = masterTemaList.map((m) => ({
+          tema: m.judul,
+          deskripsi: m.deskripsi,
+        }));
+        return {
+          ...s,
+          kokurikuler: nextKokur,
+          isKokurikulerSaved: false,
+        };
+      })
+    );
+  };
+
+  // Kosongkan Centang Tema untuk 1 Siswa
+  const handleUncheckAllForStudent = (siswaId: string) => {
+    setSiswaList((prev) =>
+      prev.map((s) => {
+        if (s.id !== siswaId) return s;
+        return {
+          ...s,
+          kokurikuler: [],
+          isKokurikulerSaved: false,
+        };
+      })
+    );
+  };
+
+  // Centang Semua Tema untuk Seluruh Siswa
+  const handleCheckAllTemaAllStudents = () => {
+    setSiswaList((prev) =>
+      prev.map((s) => {
+        const nextKokur: KokurikulerItem[] = masterTemaList.map((m) => ({
+          tema: m.judul,
+          deskripsi: m.deskripsi,
+        }));
+        return {
+          ...s,
+          kokurikuler: nextKokur,
+          isKokurikulerSaved: false,
+        };
+      })
+    );
+    toast.success("Semua tema dari Master berhasil dicentang untuk seluruh siswa.");
   };
 
   // Simpan Individual Siswa (Hanya simpan 1 row siswa ini ke server, hemat beban database)
@@ -485,20 +571,15 @@ export default function FormPelengkapClient({
     setMessage(null);
 
     try {
-      const kokur = temaList.map((t, idx) => {
-        const existing = siswa.kokurikuler.find((k) => k.tema === t) || siswa.kokurikuler[idx];
-        const desc =
-          existing?.deskripsi ||
-          `${siswa.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiatan ${t.replace(/Tema \d+ : /, "").trim()}`;
+      const finalKokur = (siswa.kokurikuler || []).map((k) => {
+        const matchedMaster = masterTemaList.find((m) => isTemaMatch(k, m));
         return {
-          tema: t,
-          deskripsi: desc,
+          tema: matchedMaster ? matchedMaster.judul : k.tema,
+          deskripsi: matchedMaster?.deskripsi || k.deskripsi || "",
         };
       });
 
-      const kebiasaan =
-        siswa.kebiasaanKarakter ||
-        `${siswa.nama.toUpperCase()} Terbiasa dalam beribadah dan Belum Terbiasa dalam tidur cepat`;
+      const kebiasaan = siswa.kebiasaanKarakter;
 
       const statusKenaikan = isSemesterGenap
         ? siswa.statusKenaikan || (isKelasAkhir ? "LULUS" : `Naik ke Kelas ${tingkat + 1}`)
@@ -513,7 +594,7 @@ export default function FormPelengkapClient({
         alpa: siswa.alpa,
         catatanWali: siswa.catatanWali,
         ekskul: siswa.ekskul,
-        kokurikuler: kokur,
+        kokurikuler: finalKokur,
         kebiasaanKarakter: kebiasaan,
         statusKenaikan,
       });
@@ -525,7 +606,7 @@ export default function FormPelengkapClient({
             s.id === siswa.id
               ? {
                   ...s,
-                  kokurikuler: kokur,
+                  kokurikuler: finalKokur,
                   kebiasaanKarakter: kebiasaan,
                   statusKenaikan,
                   isPresensiSaved: true,
@@ -871,7 +952,7 @@ export default function FormPelengkapClient({
               : "bg-stone-100 text-zinc-600 hover:bg-stone-200"
           }`}
         >
-          <span>3. Kokurikuler (Projek P5) ({temaList.length} Tema)</span>
+          <span>3. Kokurikuler (Projek P5) ({masterTemaList.length} Tema)</span>
           {kokurikulerSavedCount === siswaList.length ? (
             <span
               className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
@@ -1012,10 +1093,13 @@ export default function FormPelengkapClient({
         <TabKokurikuler
           kelasNama={kelasNama}
           siswaList={siswaList}
-          temaList={temaList}
+          masterTemaList={masterTemaList}
           loadingId={loadingId}
           isBulkSaving={isBulkSaving}
-          onKokurikulerChange={handleKokurikulerChange}
+          onToggleTema={handleToggleTema}
+          onCheckAllForStudent={handleCheckAllForStudent}
+          onUncheckAllForStudent={handleUncheckAllForStudent}
+          onCheckAllTemaAllStudents={handleCheckAllTemaAllStudents}
           onBulkSaveKokurikuler={handleBulkSaveKokurikuler}
           onSaveIndividual={handleSaveIndividual}
           onRevertIndividual={handleRevertIndividualKokurikuler}

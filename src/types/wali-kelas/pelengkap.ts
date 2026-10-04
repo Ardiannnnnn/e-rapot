@@ -13,6 +13,13 @@ export interface KokurikulerItem {
   deskripsi: string;
 }
 
+export interface TemaP5MasterItem {
+  id: string;
+  nomor: number;
+  judul: string;
+  deskripsi: string;
+}
+
 export interface SiswaPelengkapItem {
   id: string;
   nama: string;

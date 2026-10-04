@@ -581,7 +581,7 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
           </h2>
           <div className="border border-black text-[10.5px]">
             {listKokurikuler.length === 0 ? (
-              <div className="p-3 text-center italic text-zinc-500">
+              <div className="p-2.5 text-center text-black">
                 -
               </div>
             ) : (
@@ -605,8 +605,7 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
             7 Kebiasaan Anak Indonesia Hebat
           </h2>
           <div className="border border-black p-2.5 text-[10.5px] leading-relaxed text-black">
-            {pelengkap.kebiasaanKarakter ||
-              `${siswa.nama.toUpperCase()} Terbiasa dalam beribadah dan Belum Terbiasa dalam tidur cepat`}
+            {pelengkap.kebiasaanKarakter || "-"}
           </div>
         </div>
 
@@ -616,8 +615,7 @@ export default function LembarRapor({ data }: { data: LembarRaporData }) {
             Saran-saran / Catatan Wali Kelas
           </h2>
           <div className="border border-black p-2.5 text-[10.5px] leading-relaxed text-black">
-            {pelengkap.catatanWali ||
-              "Alhamdulillah sikap dan pengetahuan Ananda sudah baik. Kembangkan potensi yang dimiliki karena intan tidak akan dinilai tanpa diasah."}
+            {pelengkap.catatanWali || "-"}
           </div>
         </div>
 

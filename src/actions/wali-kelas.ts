@@ -60,11 +60,11 @@ export async function simpanPelengkapAction(input: SimpanPelengkapInput) {
       return { success: false, message: access.message || "Akses ditolak." };
     }
 
-    const cleanCatatan = input.catatanWali ? sanitizeInput(input.catatanWali, 1000) : null;
-    const cleanKebiasaan = input.kebiasaanKarakter
+    const cleanCatatan = typeof input.catatanWali === "string" ? sanitizeInput(input.catatanWali, 1000) : null;
+    const cleanKebiasaan = typeof input.kebiasaanKarakter === "string"
       ? sanitizeInput(input.kebiasaanKarakter, 1000)
       : null;
-    const cleanStatusKenaikan = input.statusKenaikan
+    const cleanStatusKenaikan = typeof input.statusKenaikan === "string"
       ? sanitizeInput(input.statusKenaikan, 100)
       : null;
 

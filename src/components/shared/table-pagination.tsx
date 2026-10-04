@@ -55,19 +55,28 @@ export function TablePaginationInfo({
 
 export interface TablePaginationNavProps {
   currentPage: number;
-  pageSize: number;
-  totalItems: number;
+  pageSize?: number;
+  totalItems?: number;
+  totalPages?: number;
   onPageChange: (page: number) => void;
 }
 
 export function TablePaginationNav({
   currentPage,
-  pageSize,
+  pageSize = 10,
   totalItems,
+  totalPages: propTotalPages,
   onPageChange,
 }: TablePaginationNavProps) {
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  if (totalItems === 0) return null;
+  const computedTotalPages =
+    propTotalPages !== undefined
+      ? Math.max(1, isNaN(propTotalPages) ? 1 : propTotalPages)
+      : totalItems !== undefined
+      ? Math.max(1, Math.ceil((isNaN(totalItems) ? 0 : totalItems) / (pageSize || 10)))
+      : 1;
+
+  const totalPages = computedTotalPages;
+  if (totalItems === 0 || (propTotalPages === 0 && totalItems === undefined)) return null;
 
   // Generate page numbers with smart ellipsis
   const pages: (number | string)[] = [];

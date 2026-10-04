@@ -43,22 +43,28 @@ export function TabKenaikan({
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filterUnsavedOnly, setFilterUnsavedOnly] = useState(false);
 
   const kenaikanSavedCount = siswaList.filter(
     (s) => s.isKenaikanSaved && s.statusKenaikan
   ).length;
+  const unsavedCount = siswaList.length - kenaikanSavedCount;
 
   const hasUnsavedChanges = kenaikanSavedCount < siswaList.length;
 
   const filteredList = useMemo(() => {
-    if (!search.trim()) return siswaList;
+    let list = siswaList;
+    if (filterUnsavedOnly) {
+      list = list.filter((s) => !(s.isKenaikanSaved && s.statusKenaikan));
+    }
+    if (!search.trim()) return list;
     const q = search.toLowerCase().trim();
-    return siswaList.filter(
+    return list.filter(
       (s) =>
         s.nama.toLowerCase().includes(q) ||
         (s.nisn && s.nisn.toLowerCase().includes(q))
     );
-  }, [siswaList, search]);
+  }, [siswaList, search, filterUnsavedOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -80,19 +86,35 @@ export function TabKenaikan({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-amber-200 text-xs font-semibold shadow-2xs">
-              {kenaikanSavedCount === siswaList.length ? (
+            {unsavedCount === 0 ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-amber-200 text-xs font-semibold shadow-2xs">
                 <span className="inline-flex items-center gap-1 text-emerald-700">
                   <CheckCircle2Icon className="h-4 w-4 text-emerald-600" />
                   Semua Siswa Tersimpan ({kenaikanSavedCount}/{siswaList.length})
                 </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-amber-800">
-                  <XCircleIcon className="h-4 w-4 text-amber-600" />
-                  {siswaList.length - kenaikanSavedCount} Belum Disimpan
-                </span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterUnsavedOnly((prev) => !prev);
+                  setCurrentPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold shadow-2xs transition cursor-pointer ${
+                  filterUnsavedOnly
+                    ? "bg-rose-600 text-white border-rose-600 ring-2 ring-rose-600/30"
+                    : "bg-white border-rose-200 text-rose-600 hover:bg-rose-50"
+                }`}
+                title={
+                  filterUnsavedOnly
+                    ? "Klik untuk tampilkan semua siswa"
+                    : "Klik untuk langsung melihat siswa yang belum disimpan"
+                }
+              >
+                <XCircleIcon className={`h-4 w-4 ${filterUnsavedOnly ? "text-white" : "text-rose-500"}`} />
+                <span>{unsavedCount} Belum Disimpan</span>
+              </button>
+            )}
             {hasUnsavedChanges && (
               <button
                 type="button"
@@ -195,6 +217,28 @@ export function TabKenaikan({
         />
       </div>
 
+      {/* Filter Unsaved Notice */}
+      {filterUnsavedOnly && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-rose-600 animate-pulse" />
+            <span className="font-semibold">
+              Menampilkan {filteredList.length} siswa dengan status kenaikan yang belum disimpan.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterUnsavedOnly(false);
+              setCurrentPage(1);
+            }}
+            className="text-xs font-bold text-rose-700 hover:text-rose-900 underline cursor-pointer ml-3"
+          >
+            Tampilkan Semua Siswa
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-xs">
         <table className="w-full text-xs text-left">
@@ -214,7 +258,9 @@ export function TabKenaikan({
             {paginatedList.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-8 text-center text-zinc-400 italic">
-                  {search
+                  {filterUnsavedOnly
+                    ? "Semua siswa sudah tersimpan!"
+                    : search
                     ? `Tidak ada siswa yang cocok dengan pencarian "${search}".`
                     : "Belum ada data siswa."}
                 </td>

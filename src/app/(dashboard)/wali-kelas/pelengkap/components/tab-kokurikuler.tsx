@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   CheckCircle2Icon,
@@ -7,212 +8,538 @@ import {
   SlidersHorizontalIcon,
   SaveIcon,
   RotateCcwIcon,
+  SearchIcon,
+  SparklesIcon,
 } from "@/components/shared/icons";
-import { SiswaPelengkapItem } from "@/types/wali-kelas/pelengkap";
+import {
+  SiswaPelengkapItem,
+  TemaP5MasterItem,
+  KokurikulerItem,
+} from "@/types/wali-kelas/pelengkap";
+import { TablePaginationInfo, TablePaginationNav } from "@/components/shared/table-pagination";
 
 interface TabKokurikulerProps {
   kelasNama: string;
   siswaList: SiswaPelengkapItem[];
-  temaList: string[];
+  masterTemaList: TemaP5MasterItem[];
   loadingId: string | null;
   isBulkSaving: boolean;
-  onKokurikulerChange: (siswaId: string, temaIdx: number, tema: string, deskripsi: string) => void;
+  onToggleTema: (siswaId: string, tema: TemaP5MasterItem) => void;
+  onCheckAllForStudent: (siswaId: string) => void;
+  onUncheckAllForStudent: (siswaId: string) => void;
+  onCheckAllTemaAllStudents: () => void;
   onBulkSaveKokurikuler: () => Promise<void>;
   onSaveIndividual: (siswa: SiswaPelengkapItem) => Promise<void>;
   onRevertIndividual: (siswaId: string) => void;
   onRevertAll: () => void;
 }
 
+export function isTemaMatch(k: KokurikulerItem, m: TemaP5MasterItem): boolean {
+  if (!k || !k.tema) return false;
+  const cleanK = k.tema.trim().toLowerCase();
+  const cleanM = m.judul.trim().toLowerCase();
+  if (cleanK === cleanM) return true;
+  const kPrefix = cleanK.match(/^tema\s*\d+/)?.[0];
+  const mPrefix = cleanM.match(/^tema\s*\d+/)?.[0];
+  if (kPrefix && mPrefix && kPrefix === mPrefix) return true;
+  return cleanK.includes(cleanM) || cleanM.includes(cleanK);
+}
+
+export function isTemaChecked(
+  studentKokur: KokurikulerItem[] | undefined,
+  masterTema: TemaP5MasterItem
+): boolean {
+  if (!studentKokur || studentKokur.length === 0) return false;
+  return studentKokur.some((k) => isTemaMatch(k, masterTema));
+}
+
+function getShortTemaLabel(m: TemaP5MasterItem): string {
+  const match = m.judul.match(/^Tema\s*(\d+)\s*[:\-]\s*(.*)$/i);
+  if (match) {
+    const num = match[1];
+    let title = match[2].trim();
+    if (title.length > 28) {
+      title = title.slice(0, 25) + "...";
+    }
+    return `Tema ${num}: ${title}`;
+  }
+  return m.judul.length > 32 ? m.judul.slice(0, 29) + "..." : m.judul;
+}
+
 export function TabKokurikuler({
   kelasNama,
   siswaList,
-  temaList,
+  masterTemaList,
   loadingId,
   isBulkSaving,
-  onKokurikulerChange,
+  onToggleTema,
+  onCheckAllForStudent,
+  onUncheckAllForStudent,
+  onCheckAllTemaAllStudents,
   onBulkSaveKokurikuler,
   onSaveIndividual,
   onRevertIndividual,
   onRevertAll,
 }: TabKokurikulerProps) {
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "saved" | "unsaved">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const kokurikulerSavedCount = siswaList.filter((s) => s.isKokurikulerSaved).length;
-  const hasUnsavedChanges = kokurikulerSavedCount < siswaList.length;
+  const unsavedCount = siswaList.length - kokurikulerSavedCount;
+  const hasUnsavedChanges = unsavedCount > 0;
+
+  const filteredList = useMemo(() => {
+    let list = siswaList;
+    if (filterStatus === "unsaved") {
+      list = list.filter((s) => !s.isKokurikulerSaved);
+    } else if (filterStatus === "saved") {
+      list = list.filter((s) => s.isKokurikulerSaved);
+    }
+    if (!search.trim()) return list;
+    const q = search.toLowerCase().trim();
+    return list.filter(
+      (s) =>
+        s.nama.toLowerCase().includes(q) ||
+        (s.nisn && s.nisn.toLowerCase().includes(q))
+    );
+  }, [siswaList, search, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedList = filteredList.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="space-y-4">
-      {/* Box Pengaturan Tema Projek Semester Dinamis */}
+      {/* Box Pengaturan Tema Projek Semester Dinamis dari Master Deskripsi */}
       <div className="bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-bold text-emerald-950 font-poppins">
-              Tema Kokurikuler (Projek P5) Kelas {kelasNama}
+            <h3 className="text-sm font-bold text-emerald-950 font-poppins flex items-center gap-2">
+              <SparklesIcon className="h-4 w-4 text-emerald-700" />
+              <span>Tema Kokurikuler (Projek P5) Kelas {kelasNama}</span>
+              <span className="text-xs font-normal text-emerald-800">
+                ({masterTemaList.length} Tema Terdaftar di Master)
+              </span>
             </h3>
+            <p className="text-xs text-emerald-800/90 mt-0.5">
+              Tema dan narasi dirumuskan di Master Deskripsi. Centang [✓] tema yang dicapai siswa pada tabel di bawah.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-semibold shadow-2xs">
-              {kokurikulerSavedCount === siswaList.length ? (
+            {unsavedCount === 0 ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-200 text-xs font-semibold shadow-2xs">
                 <span className="inline-flex items-center gap-1 text-emerald-700">
                   <CheckCircle2Icon className="h-4 w-4 text-emerald-600" />
                   Semua Siswa Tersimpan ({kokurikulerSavedCount}/{siswaList.length})
                 </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-rose-600">
-                  <XCircleIcon className="h-4 w-4 text-rose-500" />
-                  {siswaList.length - kokurikulerSavedCount} Siswa Belum Disimpan
-                </span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterStatus(filterStatus === "unsaved" ? "all" : "unsaved");
+                  setCurrentPage(1);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold shadow-2xs transition cursor-pointer ${
+                  filterStatus === "unsaved"
+                    ? "bg-rose-600 text-white border-rose-600 ring-2 ring-rose-600/30"
+                    : "bg-white border-rose-200 text-rose-600 hover:bg-rose-50"
+                }`}
+                title={
+                  filterStatus === "unsaved"
+                    ? "Klik untuk tampilkan semua siswa"
+                    : "Klik untuk memfilter siswa yang belum disimpan"
+                }
+              >
+                <XCircleIcon className={`h-4 w-4 ${filterStatus === "unsaved" ? "text-white" : "text-rose-500"}`} />
+                <span>{unsavedCount} Belum Disimpan</span>
+              </button>
+            )}
+
             <Link
               href="/wali-kelas/master-deskripsi"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-emerald-300 text-emerald-900 text-xs font-semibold hover:bg-emerald-100 shadow-xs transition"
             >
               <SlidersHorizontalIcon className="h-3.5 w-3.5 text-emerald-700" />
-              Kelola Tema di Master Deskripsi
+              Kelola di Master Deskripsi
             </Link>
+
             {hasUnsavedChanges && (
               <button
                 type="button"
                 onClick={onRevertAll}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition shadow-xs cursor-pointer"
                 title="Batalkan seluruh perubahan kokurikuler yang belum disimpan"
               >
                 <RotateCcwIcon className="h-3.5 w-3.5" />
                 Batal Semua
               </button>
             )}
+
             <button
               type="button"
               disabled={isBulkSaving}
               onClick={onBulkSaveKokurikuler}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-xs disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-xs disabled:opacity-50 cursor-pointer"
             >
               <SaveIcon className="h-4 w-4" />
-              {isBulkSaving ? "Menyimpan..." : "Simpan Kokurikuler Seluruh Siswa"}
+              <span>{isBulkSaving ? "Menyimpan..." : "Simpan Kokurikuler Seluruh Siswa"}</span>
             </button>
           </div>
         </div>
 
-        {/* List Tema Aktif (Read-Only Badges) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-          {temaList.map((t, idx) => (
-            <div
-              key={idx}
-              className="p-3.5 bg-white border border-emerald-200 rounded-xl shadow-2xs flex items-start gap-3"
-            >
-              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-bold font-mono shrink-0 mt-0.5">
-                Tema {idx + 1}
-              </span>
-              <div className="text-xs font-semibold text-zinc-800 leading-snug">
-                {t}
+        {/* Ringkasan Tema & Narasi Master */}
+        {masterTemaList.length === 0 ? (
+          <div className="p-4 rounded-xl bg-white border border-dashed border-emerald-300 text-xs text-zinc-600 text-center">
+            Belum ada tema projek yang dirumuskan di Master Deskripsi. Silakan klik{" "}
+            <Link href="/wali-kelas/master-deskripsi" className="font-semibold text-emerald-700 underline">
+              Kelola di Master Deskripsi
+            </Link>{" "}
+            untuk menambahkan tema.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+            {masterTemaList.map((m) => (
+              <div
+                key={m.id}
+                className="p-3.5 rounded-xl border border-emerald-200/90 bg-white/95 shadow-2xs space-y-1.5"
+              >
+                <div className="flex items-start gap-2">
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono font-bold text-[11px] shrink-0 border border-emerald-300 mt-0.5">
+                    Tema {m.nomor}
+                  </span>
+                  <h4 className="text-xs font-bold text-zinc-900 leading-snug line-clamp-2" title={m.judul}>
+                    {m.judul}
+                  </h4>
+                </div>
+                <p
+                  className="text-[11px] text-zinc-600 line-clamp-3 leading-relaxed pl-1 font-sans"
+                  title={m.deskripsi}
+                >
+                  {m.deskripsi || <span className="italic text-zinc-400">Belum ada narasi capaian di master</span>}
+                </p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Control Bar: Pencarian, Status Filter & Aksi Cepat */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Input Search Siswa */}
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari siswa atau NISN..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9 pr-7 py-1.5 border border-stone-300 rounded-xl text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+            <SearchIcon className="absolute left-3 top-2 h-3.5 w-3.5 text-zinc-400" />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-1.5 text-xs text-zinc-400 hover:text-zinc-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Filter Status Tabs */}
+          <div className="flex items-center rounded-xl bg-stone-100 p-0.5 border border-stone-200 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setFilterStatus("all");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                filterStatus === "all"
+                  ? "bg-white text-zinc-900 shadow-2xs font-semibold"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              Semua ({siswaList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFilterStatus("saved");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                filterStatus === "saved"
+                  ? "bg-white text-emerald-800 shadow-2xs font-semibold"
+                  : "text-zinc-600 hover:text-emerald-700"
+              }`}
+            >
+              Sudah Disimpan ({kokurikulerSavedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFilterStatus("unsaved");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 rounded-lg font-medium transition cursor-pointer ${
+                filterStatus === "unsaved"
+                  ? "bg-white text-rose-700 shadow-2xs font-semibold"
+                  : "text-zinc-600 hover:text-rose-700"
+              }`}
+            >
+              Belum Disimpan ({unsavedCount})
+            </button>
+          </div>
+        </div>
+
+        {/* Sisi Kanan: Aksi Cepat Massal & Pagination */}
+        <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2.5">
+          {masterTemaList.length > 0 && (
+            <button
+              type="button"
+              onClick={onCheckAllTemaAllStudents}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-900 text-xs font-semibold transition shadow-2xs cursor-pointer"
+              title="Centang semua tema projek yang ada di Master untuk seluruh siswa di kelas ini"
+            >
+              <span>✨</span>
+              <span>Centang Semua Tema (Seluruh Siswa)</span>
+            </button>
+          )}
+
+          <TablePaginationInfo
+            currentPage={safeCurrentPage}
+            pageSize={pageSize}
+            totalItems={filteredList.length}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+            onPageChange={(page) => setCurrentPage(page)}
+            label="siswa"
+            pageSizeOptions={[10, 20, 30, 50]}
+          />
         </div>
       </div>
 
-      {/* List Siswa & Narasi Kokurikuler Sesuai Jumlah Tema */}
-      <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-xs">
-        <table className="w-full text-xs text-left">
-          <thead className="bg-stone-100 text-zinc-700 font-bold border-b border-stone-200 uppercase tracking-wider text-[11px]">
-            <tr>
-              <th className="py-3 px-4 w-12 text-center">No</th>
-              <th className="py-3 px-4 w-48">Nama Siswa</th>
-              <th className="py-3 px-4 w-32 text-center">NISN</th>
-              <th className="py-3 px-4 w-36 text-center">Status Simpan</th>
-              <th className="py-3 px-4">Deskripsi Pencapaian Seluruh Tema Projek P5</th>
-              <th className="py-3 px-3 w-44 text-center">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {siswaList.map((s, idx) => (
-              <tr key={s.id} className="hover:bg-stone-50/60 transition">
-                <td className="py-3 px-4 text-center font-mono font-medium text-zinc-500">
-                  {idx + 1}
-                </td>
-                <td className="py-3 px-4">
-                  <p className="font-semibold text-zinc-900">{s.nama}</p>
-                </td>
-                <td className="py-3 px-4 text-center font-mono text-xs text-zinc-600">
-                  {s.nisn || "-"}
-                </td>
-                <td className="py-3 px-4 text-center">
-                  {s.isKokurikulerSaved ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <CheckCircle2Icon className="h-3 w-3 text-emerald-600" />
-                      Sudah Disimpan
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                      <XCircleIcon className="h-3 w-3 text-rose-500" />
-                      Belum Disimpan
-                    </span>
-                  )}
-                </td>
-                <td className="py-3 px-4">
-                  <div className="space-y-2.5">
-                    {temaList.map((t, tIdx) => {
-                      const existing =
-                        s.kokurikuler.find((k) => k.tema === t) || s.kokurikuler[tIdx];
-                      const val =
-                        existing?.deskripsi ||
-                        `${s.nama.toUpperCase()} Sangat Baik dalam keimanan dan ketakwaan terhadap Tuhan YME dan Perlu Bimbingan dalam kesehatan pada kegiatan ${t.replace(/Tema \d+ : /, "").trim()}`;
-
-                      return (
-                        <div key={tIdx} className="space-y-1 bg-stone-50/40 p-2 rounded-xl border border-stone-200">
-                          <span className="text-[11px] font-bold text-zinc-800 block">
-                            {t}
-                          </span>
-                          <textarea
-                            rows={2}
-                            value={val}
-                            onChange={(e) =>
-                              onKokurikulerChange(s.id, tIdx, t, e.target.value)
-                            }
-                            className="w-full p-2 border border-stone-300 rounded-lg text-xs leading-relaxed bg-white focus:ring-1 focus:ring-emerald-500"
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </td>
-                <td className="py-3 px-3 text-center align-top pt-4">
-                  <div className="flex items-center justify-center gap-1.5">
-                    {!s.isKokurikulerSaved && (
-                      <button
-                        type="button"
-                        onClick={() => onRevertIndividual(s.id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition shadow-2xs"
-                        title="Batalkan perubahan kokurikuler untuk siswa ini"
-                      >
-                        <RotateCcwIcon className="h-3.5 w-3.5" />
-                        <span>Batal</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={loadingId === s.id}
-                      onClick={() => onSaveIndividual(s)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-2xs ${
-                        s.isKokurikulerSaved
-                          ? "bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200"
-                          : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-                      } disabled:opacity-50`}
-                      title="Simpan kokurikuler siswa ini saja"
-                    >
-                      {loadingId === s.id ? (
-                        <span className="animate-spin h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full" />
-                      ) : (
-                        <SaveIcon className="h-3.5 w-3.5" />
-                      )}
-                      <span>Simpan</span>
-                    </button>
-                  </div>
-                </td>
+      {/* Tabel Siswa & Pilihan Tema Checkbox */}
+      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-stone-50 border-b border-stone-200 text-zinc-600 font-mono text-[11px] uppercase tracking-wider">
+                <th className="py-3.5 px-3 w-14 text-center">No</th>
+                <th className="py-3.5 px-4 min-w-[200px]">Nama Siswa</th>
+                <th className="py-3.5 px-3 w-28 text-center">Status</th>
+                <th className="py-3.5 px-4 min-w-[340px]">
+                  Pilihan Tema Kokurikuler (Projek P5)
+                  <span className="block text-[10px] normal-case text-zinc-500 font-normal">
+                    Centang [✓] tema yang dicapai siswa
+                  </span>
+                </th>
+                <th className="py-3.5 px-3 w-32 text-center">Aksi</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {paginatedList.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-zinc-500">
+                    {search || filterStatus !== "all"
+                      ? "Tidak ada siswa yang cocok dengan filter."
+                      : "Belum ada data siswa."}
+                  </td>
+                </tr>
+              ) : (
+                paginatedList.map((siswa, idx) => {
+                  const globalIdx = startIndex + idx + 1;
+                  const isSaved = siswa.isKokurikulerSaved ?? true;
+                  const isSavingThis = loadingId === siswa.id;
+                  const currentKokur = siswa.kokurikuler || [];
+                  const checkedCount = masterTemaList.filter((m) =>
+                    isTemaChecked(currentKokur, m)
+                  ).length;
+
+                  return (
+                    <tr
+                      key={siswa.id}
+                      className={`transition-colors ${
+                        !isSaved ? "bg-amber-50/40 hover:bg-amber-50/60" : "hover:bg-stone-50/70"
+                      }`}
+                    >
+                      {/* Nomor Urut */}
+                      <td className="py-3.5 px-3 text-center text-zinc-500 font-mono text-xs">
+                        {globalIdx}
+                      </td>
+
+                      {/* Nama Siswa */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-zinc-900 text-sm">
+                            {siswa.nama}
+                          </span>
+                          {!isSaved && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                              Diubah
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-zinc-500 font-mono mt-0.5">
+                          NISN: {siswa.nisn || "-"}
+                        </div>
+                      </td>
+
+                      {/* Status Simpan */}
+                      <td className="py-3.5 px-3 text-center">
+                        {isSaved ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <CheckCircle2Icon className="h-3 w-3" />
+                            Tersimpan
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                            <XCircleIcon className="h-3 w-3" />
+                            Belum Disimpan
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Kolom Checkbox Pilihan Tema Kokurikuler */}
+                      <td className="py-3 px-4">
+                        {masterTemaList.length === 0 ? (
+                          <div className="text-zinc-500 text-xs italic">
+                            Belum ada tema di master deskripsi.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {masterTemaList.map((tema) => {
+                                const isChecked = isTemaChecked(currentKokur, tema);
+                                return (
+                                  <button
+                                    key={tema.id}
+                                    type="button"
+                                    onClick={() => onToggleTema(siswa.id, tema)}
+                                    title={`${tema.judul}\n\nNarasi Capaian Projek:\n${
+                                      tema.deskripsi || "(Belum ada narasi di master)"
+                                    }\n\n(Klik untuk centang/batalkan)`}
+                                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                      isChecked
+                                        ? "bg-emerald-50 text-emerald-950 border-emerald-400 ring-1 ring-emerald-400/40 shadow-2xs"
+                                        : "bg-stone-50 text-zinc-600 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] transition ${
+                                        isChecked
+                                          ? "bg-emerald-600 text-white font-bold"
+                                          : "border border-stone-300 bg-white text-transparent"
+                                      }`}
+                                    >
+                                      ✓
+                                    </span>
+                                    <span className="font-medium text-xs">
+                                      {getShortTemaLabel(tema)}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Info ringkas & helper quick check */}
+                            <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                              <span className="font-mono text-emerald-800 font-semibold">
+                                {checkedCount} dari {masterTemaList.length} tema aktif
+                              </span>
+                              <span className="text-stone-300">•</span>
+                              <button
+                                type="button"
+                                onClick={() => onCheckAllForStudent(siswa.id)}
+                                className="text-emerald-700 hover:underline font-semibold cursor-pointer"
+                                title="Centang semua tema untuk siswa ini"
+                              >
+                                Centang Semua
+                              </button>
+                              <span className="text-stone-300">•</span>
+                              <button
+                                type="button"
+                                onClick={() => onUncheckAllForStudent(siswa.id)}
+                                className="text-zinc-500 hover:text-rose-600 hover:underline font-medium cursor-pointer"
+                                title="Kosongkan seluruh centang tema untuk siswa ini"
+                              >
+                                Kosongkan
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Kolom Aksi per Siswa */}
+                      <td className="py-3.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {!isSaved && (
+                            <button
+                              type="button"
+                              onClick={() => onRevertIndividual(siswa.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition shadow-2xs cursor-pointer"
+                              title="Batalkan perubahan pada siswa ini"
+                            >
+                              <RotateCcwIcon className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">Batal</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isSavingThis}
+                            onClick={() => onSaveIndividual(siswa)}
+                            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer disabled:opacity-50 ${
+                              !isSaved
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                : "bg-stone-100 hover:bg-stone-200 text-zinc-700"
+                            }`}
+                            title="Simpan data kokurikuler siswa ini"
+                          >
+                            <SaveIcon className="h-3.5 w-3.5" />
+                            <span>{isSavingThis ? "..." : "Simpan"}</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Pagination Navigation */}
+        <div className="p-3 border-t border-stone-200 bg-stone-50/50 flex items-center justify-between">
+          <span className="text-xs text-zinc-500">
+            Menampilkan{" "}
+            <strong>
+              {paginatedList.length > 0 ? startIndex + 1 : 0} -{" "}
+              {startIndex + paginatedList.length}
+            </strong>{" "}
+            dari <strong>{filteredList.length}</strong> siswa
+          </span>
+          <TablePaginationNav
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => setCurrentPage(page)}
+          />
+        </div>
       </div>
     </div>
   );

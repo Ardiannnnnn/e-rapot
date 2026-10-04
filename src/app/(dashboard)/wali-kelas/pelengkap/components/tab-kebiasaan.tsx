@@ -39,21 +39,27 @@ export function TabKebiasaan({
   onRevertAll,
 }: TabKebiasaanProps) {
   const [search, setSearch] = useState("");
+  const [filterUnsavedOnly, setFilterUnsavedOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   const kebiasaanSavedCount = siswaList.filter((s) => s.isKebiasaanSaved).length;
-  const hasUnsavedChanges = kebiasaanSavedCount < siswaList.length;
+  const unsavedCount = siswaList.length - kebiasaanSavedCount;
+  const hasUnsavedChanges = unsavedCount > 0;
 
   const filteredList = useMemo(() => {
-    if (!search.trim()) return siswaList;
+    let list = siswaList;
+    if (filterUnsavedOnly) {
+      list = list.filter((s) => !s.isKebiasaanSaved);
+    }
+    if (!search.trim()) return list;
     const q = search.toLowerCase().trim();
-    return siswaList.filter(
+    return list.filter(
       (s) =>
         s.nama.toLowerCase().includes(q) ||
         (s.nisn && s.nisn.toLowerCase().includes(q))
     );
-  }, [siswaList, search]);
+  }, [siswaList, search, filterUnsavedOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -72,19 +78,35 @@ export function TabKebiasaan({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold shadow-2xs">
-            {kebiasaanSavedCount === siswaList.length ? (
+          {unsavedCount === 0 ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold shadow-2xs">
               <span className="inline-flex items-center gap-1 text-emerald-700">
                 <CheckCircle2Icon className="h-4 w-4 text-emerald-600" />
                 Semua Siswa Tersimpan ({kebiasaanSavedCount}/{siswaList.length})
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-rose-600">
-                <XCircleIcon className="h-4 w-4 text-rose-500" />
-                {siswaList.length - kebiasaanSavedCount} Belum Disimpan
-              </span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterUnsavedOnly((prev) => !prev);
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold shadow-2xs transition cursor-pointer ${
+                filterUnsavedOnly
+                  ? "bg-rose-600 text-white border-rose-600 ring-2 ring-rose-600/30"
+                  : "bg-white border-rose-200 text-rose-600 hover:bg-rose-50"
+              }`}
+              title={
+                filterUnsavedOnly
+                  ? "Klik untuk tampilkan semua siswa"
+                  : "Klik untuk langsung melihat siswa yang belum disimpan"
+              }
+            >
+              <XCircleIcon className={`h-4 w-4 ${filterUnsavedOnly ? "text-white" : "text-rose-500"}`} />
+              <span>{unsavedCount} Belum Disimpan</span>
+            </button>
+          )}
           <Link
             href="/wali-kelas/master-deskripsi"
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-300 bg-white text-zinc-700 text-xs font-semibold hover:bg-stone-50 transition"
@@ -204,10 +226,8 @@ export function TabKebiasaan({
                     <div className="space-y-1.5">
                       <textarea
                         rows={2}
-                        value={
-                          s.kebiasaanKarakter ||
-                          `${s.nama.toUpperCase()} Terbiasa dalam beribadah dan Belum Terbiasa dalam tidur cepat`
-                        }
+                        value={s.kebiasaanKarakter}
+                        placeholder="Ketik narasi pembiasaan positif anak atau pilih dari master..."
                         onChange={(e) => onKebiasaanChange(s.id, e.target.value)}
                         className="w-full p-2 border border-stone-300 rounded-lg text-xs leading-relaxed focus:ring-1 focus:ring-emerald-500"
                       />

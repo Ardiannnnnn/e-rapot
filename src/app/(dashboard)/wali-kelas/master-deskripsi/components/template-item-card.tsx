@@ -74,7 +74,9 @@ export function TemplateItemCard({
           ) : (
             <>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-zinc-700">Label / Judul:</span>
+                <span className="text-xs font-bold text-zinc-700 w-36 shrink-0">
+                  {item.kategori === "TEMA_P5" ? "Nomor & Judul Tema:" : "Label / Judul:"}
+                </span>
                 <input
                   type="text"
                   value={editJudul}
@@ -83,7 +85,9 @@ export function TemplateItemCard({
                 />
               </div>
               <div className="space-y-1">
-                <span className="text-xs font-bold text-zinc-700">Isi Deskripsi / Teks:</span>
+                <span className="text-xs font-bold text-zinc-700">
+                  {item.kategori === "TEMA_P5" ? "Isi Narasi Capaian Projek:" : "Isi Deskripsi / Teks:"}
+                </span>
                 <textarea
                   rows={3}
                   value={editTeks}
@@ -135,8 +139,13 @@ export function TemplateItemCard({
                     {index + 1}
                   </span>
                   <h3 className="font-bold text-zinc-900 text-xs sm:text-sm">
-                    {item.judul || `Pilihan ${index + 1}`}
+                    {item.judul || (item.kategori === "TEMA_P5" ? `Tema ${index + 1}` : `Pilihan ${index + 1}`)}
                   </h3>
+                  {item.kategori === "TEMA_P5" && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Kokurikuler P5
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-zinc-700 leading-relaxed pl-8 font-sans">
                   {item.teks}
