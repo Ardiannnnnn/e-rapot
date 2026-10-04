@@ -40,19 +40,12 @@
    npm install
    ```
 
-2. **Konfigurasi Environment**:
-   Salin `.env.example` ke `.env` dan sesuaikan konfigurasi database:
-   ```env
-   DATABASE_URL="postgresql://user:password@localhost:5432/e_rapor"
-   AUTH_SECRET="kunci-rahasia-jwt-anda"
-   ```
-
-3. **Sinkronisasi Database**:
+2. **Sinkronisasi Database**:
    ```bash
    npx prisma db push
    ```
 
-4. **Jalankan Server Development**:
+3. **Jalankan Server Development**:
    ```bash
    npm run dev
    ```
