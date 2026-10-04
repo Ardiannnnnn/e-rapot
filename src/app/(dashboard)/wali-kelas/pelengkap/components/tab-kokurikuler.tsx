@@ -34,36 +34,20 @@ interface TabKokurikulerProps {
   onRevertAll: () => void;
 }
 
-export function isTemaMatch(k: KokurikulerItem, m: TemaP5MasterItem): boolean {
-  if (!k || !k.tema) return false;
-  const cleanK = k.tema.trim().toLowerCase();
-  const cleanM = m.judul.trim().toLowerCase();
-  if (cleanK === cleanM) return true;
-  const kPrefix = cleanK.match(/^tema\s*\d+/)?.[0];
-  const mPrefix = cleanM.match(/^tema\s*\d+/)?.[0];
-  if (kPrefix && mPrefix && kPrefix === mPrefix) return true;
-  return cleanK.includes(cleanM) || cleanM.includes(cleanK);
-}
+import {
+  cleanTemaTitle,
+  isTemaMatch,
+  isTemaChecked,
+} from "@/lib/kokurikuler";
+export { cleanTemaTitle, isTemaMatch, isTemaChecked };
 
-export function isTemaChecked(
-  studentKokur: KokurikulerItem[] | undefined,
-  masterTema: TemaP5MasterItem
-): boolean {
-  if (!studentKokur || studentKokur.length === 0) return false;
-  return studentKokur.some((k) => isTemaMatch(k, masterTema));
-}
-
-function getShortTemaLabel(m: TemaP5MasterItem): string {
-  const match = m.judul.match(/^Tema\s*(\d+)\s*[:\-]\s*(.*)$/i);
+function getShortTemaLabel(m: TemaP5MasterItem, fallbackIdx?: number): string {
+  if (m.nomor) return `Tema ${m.nomor}`;
+  const match = m.judul.match(/^Tema\s*(\d+)/i);
   if (match) {
-    const num = match[1];
-    let title = match[2].trim();
-    if (title.length > 28) {
-      title = title.slice(0, 25) + "...";
-    }
-    return `Tema ${num}: ${title}`;
+    return `Tema ${match[1]}`;
   }
-  return m.judul.length > 32 ? m.judul.slice(0, 29) + "..." : m.judul;
+  return typeof fallbackIdx === "number" ? `Tema ${fallbackIdx + 1}` : m.judul;
 }
 
 export function TabKokurikuler({
@@ -119,14 +103,11 @@ export function TabKokurikuler({
           <div>
             <h3 className="text-sm font-bold text-emerald-950 font-poppins flex items-center gap-2">
               <SparklesIcon className="h-4 w-4 text-emerald-700" />
-              <span>Tema Kokurikuler (Projek P5) Kelas {kelasNama}</span>
+              <span>Tema Kokurikuler Kelas {kelasNama}</span>
               <span className="text-xs font-normal text-emerald-800">
                 ({masterTemaList.length} Tema Terdaftar di Master)
               </span>
             </h3>
-            <p className="text-xs text-emerald-800/90 mt-0.5">
-              Tema dan narasi dirumuskan di Master Deskripsi. Centang [✓] tema yang dicapai siswa pada tabel di bawah.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -159,14 +140,6 @@ export function TabKokurikuler({
                 <span>{unsavedCount} Belum Disimpan</span>
               </button>
             )}
-
-            <Link
-              href="/wali-kelas/master-deskripsi"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-emerald-300 text-emerald-900 text-xs font-semibold hover:bg-emerald-100 shadow-xs transition"
-            >
-              <SlidersHorizontalIcon className="h-3.5 w-3.5 text-emerald-700" />
-              Kelola di Master Deskripsi
-            </Link>
 
             {hasUnsavedChanges && (
               <button
@@ -367,10 +340,6 @@ export function TabKokurikuler({
                   const isSaved = siswa.isKokurikulerSaved ?? true;
                   const isSavingThis = loadingId === siswa.id;
                   const currentKokur = siswa.kokurikuler || [];
-                  const checkedCount = masterTemaList.filter((m) =>
-                    isTemaChecked(currentKokur, m)
-                  ).length;
-
                   return (
                     <tr
                       key={siswa.id}
@@ -423,65 +392,38 @@ export function TabKokurikuler({
                             Belum ada tema di master deskripsi.
                           </div>
                         ) : (
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              {masterTemaList.map((tema) => {
-                                const isChecked = isTemaChecked(currentKokur, tema);
-                                return (
-                                  <button
-                                    key={tema.id}
-                                    type="button"
-                                    onClick={() => onToggleTema(siswa.id, tema)}
-                                    title={`${tema.judul}\n\nNarasi Capaian Projek:\n${
-                                      tema.deskripsi || "(Belum ada narasi di master)"
-                                    }\n\n(Klik untuk centang/batalkan)`}
-                                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          <div className="flex flex-wrap items-center gap-2">
+                            {masterTemaList.map((tema, tIdx) => {
+                              const isChecked = isTemaChecked(currentKokur, tema);
+                              return (
+                                <button
+                                  key={tema.id || tIdx}
+                                  type="button"
+                                  onClick={() => onToggleTema(siswa.id, tema)}
+                                  title={`${tema.judul}${
+                                    tema.deskripsi ? `\n\nNarasi Capaian Projek:\n${tema.deskripsi}` : ""
+                                  }\n\n(Klik untuk centang/batalkan)`}
+                                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                    isChecked
+                                      ? "bg-emerald-50 text-emerald-950 border-emerald-400 ring-1 ring-emerald-400/40 shadow-2xs"
+                                      : "bg-stone-50 text-zinc-600 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] transition ${
                                       isChecked
-                                        ? "bg-emerald-50 text-emerald-950 border-emerald-400 ring-1 ring-emerald-400/40 shadow-2xs"
-                                        : "bg-stone-50 text-zinc-600 border-stone-200 hover:bg-stone-100 hover:border-stone-300"
+                                        ? "bg-emerald-600 text-white font-bold"
+                                        : "border border-stone-300 bg-white text-transparent"
                                     }`}
                                   >
-                                    <span
-                                      className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] transition ${
-                                        isChecked
-                                          ? "bg-emerald-600 text-white font-bold"
-                                          : "border border-stone-300 bg-white text-transparent"
-                                      }`}
-                                    >
-                                      ✓
-                                    </span>
-                                    <span className="font-medium text-xs">
-                                      {getShortTemaLabel(tema)}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Info ringkas & helper quick check */}
-                            <div className="flex items-center gap-2 text-[11px] text-zinc-500">
-                              <span className="font-mono text-emerald-800 font-semibold">
-                                {checkedCount} dari {masterTemaList.length} tema aktif
-                              </span>
-                              <span className="text-stone-300">•</span>
-                              <button
-                                type="button"
-                                onClick={() => onCheckAllForStudent(siswa.id)}
-                                className="text-emerald-700 hover:underline font-semibold cursor-pointer"
-                                title="Centang semua tema untuk siswa ini"
-                              >
-                                Centang Semua
-                              </button>
-                              <span className="text-stone-300">•</span>
-                              <button
-                                type="button"
-                                onClick={() => onUncheckAllForStudent(siswa.id)}
-                                className="text-zinc-500 hover:text-rose-600 hover:underline font-medium cursor-pointer"
-                                title="Kosongkan seluruh centang tema untuk siswa ini"
-                              >
-                                Kosongkan
-                              </button>
-                            </div>
+                                    ✓
+                                  </span>
+                                  <span className="font-semibold text-xs">
+                                    {getShortTemaLabel(tema, tIdx)}
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </td>

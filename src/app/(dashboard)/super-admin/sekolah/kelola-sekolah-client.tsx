@@ -734,12 +734,10 @@ export default function KelolaSekolahClient({ initialSekolahList }: { initialSek
                       Apakah Anda yakin ingin menonaktifkan instansi{" "}
                       <strong>{confirmToggleSekolah.sekolah.nama}</strong>?
                       <br />
-                      <span className="block mt-1.5 p-2.5 rounded-xl bg-rose-50 text-rose-800 text-[11px] border border-rose-200">
-                        <strong>Teknis Soft Delete:</strong>
-                        <br />• Kolom <strong>IsStatus</strong> akan diubah menjadi{" "}
-                        <strong>0 (NONAKTIF)</strong>.<br />• Data sekolah, kelas, dan siswa{" "}
-                        <strong>TIDAK DIHAPUS</strong> dari database dan dapat diaktifkan kembali
-                        kapan saja.
+                      <span className="block mt-1.5 p-2.5 rounded-xl bg-amber-50 text-amber-900 text-[11px] border border-amber-200">
+                        <strong>Catatan:</strong>
+                        <br />• Akses login untuk pengguna di sekolah ini akan ditangguhkan sementara.
+                        <br />• Seluruh data sekolah tetap aman dan dapat diaktifkan kembali kapan saja.
                       </span>
                     </>
                   )}

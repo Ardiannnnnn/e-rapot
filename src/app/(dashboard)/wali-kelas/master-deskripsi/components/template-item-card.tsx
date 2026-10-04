@@ -139,7 +139,9 @@ export function TemplateItemCard({
                     {index + 1}
                   </span>
                   <h3 className="font-bold text-zinc-900 text-xs sm:text-sm">
-                    {item.judul || (item.kategori === "TEMA_P5" ? `Tema ${index + 1}` : `Pilihan ${index + 1}`)}
+                    {item.kategori === "TEMA_P5"
+                      ? `Tema ${index + 1} : ${(item.judul || "").replace(/^Tema\s*\d+\s*[:\-]?\s*/i, "").trim() || `Tema ${index + 1}`}`
+                      : item.judul || `Pilihan ${index + 1}`}
                   </h3>
                   {item.kategori === "TEMA_P5" && (
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">

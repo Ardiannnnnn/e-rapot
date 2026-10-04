@@ -77,13 +77,11 @@ export function ModalConfirmMaster({
             </div>
           )}
 
-          <p className="text-[11px] text-zinc-400">
-            {isDelete
-              ? "Data ini akan langsung dihapus dari database."
-              : isReset
-              ? "Seluruh tema dan opsi kustom akan di-reset ke standar Kurikulum Merdeka."
-              : "Perubahan ini akan langsung disimpan ke database."}
-          </p>
+          {isReset && (
+            <p className="text-[11px] text-zinc-400">
+              Seluruh tema dan opsi kustom akan di-reset ke standar Kurikulum Merdeka.
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-stone-100">

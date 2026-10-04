@@ -7,6 +7,7 @@ import CetakRaporClient from "./cetak-rapor-client";
 import { AlertCircleIcon } from "@/components/shared/icons";
 import { LembarRaporData, NilaiRaporItem } from "@/types/wali-kelas/cetak";
 import { EkskulItem, KokurikulerItem } from "@/actions/wali-kelas";
+import { isTemaMatch, cleanTemaTitle } from "@/lib/kokurikuler";
 
 function getFaseKurikulumMerdeka(tingkat: number): string {
   if (tingkat <= 2) return "A";
@@ -171,6 +172,17 @@ async function CetakContent(props: {
     orderBy: { nama: "asc" },
   });
 
+  // 7. Ambil template tema P5 aktif untuk kelas ini
+  const masterTemaRapor = await prisma.templateRapor.findMany({
+    where: {
+      kelasId: kelas.id,
+      tahunAjaran,
+      semester,
+      kategori: "TEMA_P5",
+    },
+    orderBy: { urutan: "asc" },
+  });
+
   const fase = getFaseKurikulumMerdeka(kelas.tingkat);
   const waliKelasNama = kelas.waliKelas?.name || user.name;
   const waliKelasNip = (kelas.waliKelas as any)?.nip || (user as any)?.nip || null;
@@ -281,8 +293,37 @@ async function CetakContent(props: {
       }
     }
 
-    // Kokurikuler yang tersimpan riil per siswa
-    const finalKokurikuler = kokurikulerParsed;
+    // Filter hanya tema yang aktif di masterTemaRapor & renumber secara urut
+    let finalKokurikuler: KokurikulerItem[] = [];
+    if (masterTemaRapor.length > 0 && kokurikulerParsed.length > 0) {
+      finalKokurikuler = masterTemaRapor
+        .filter((m) =>
+          kokurikulerParsed.some((k) =>
+            isTemaMatch(k, {
+              id: m.id,
+              nomor: m.urutan,
+              judul: m.judul || "",
+              deskripsi: m.teks || "",
+            })
+          )
+        )
+        .map((m, idx) => {
+          const rawJudul = m.judul || `Tema ${idx + 1}`;
+          const cleanTitle = cleanTemaTitle(rawJudul) || rawJudul;
+          return {
+            tema: `Tema ${idx + 1} : ${cleanTitle}`,
+            deskripsi: m.teks || "",
+          };
+        });
+    } else {
+      finalKokurikuler = kokurikulerParsed.map((k, idx) => {
+        const cleanTitle = cleanTemaTitle(k.tema) || k.tema;
+        return {
+          tema: `Tema ${idx + 1} : ${cleanTitle}`,
+          deskripsi: k.deskripsi,
+        };
+      });
+    }
 
     // Kebiasaan Karakter riil per siswa
     const finalKebiasaan = p?.kebiasaanKarakter?.trim() || null;

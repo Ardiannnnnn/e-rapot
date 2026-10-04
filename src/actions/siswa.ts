@@ -358,7 +358,7 @@ export async function importSiswaExcelAction(items: ItemSiswaImport[]) {
     revalidatePath("/wali-kelas/siswa");
     revalidatePath("/wali-kelas");
 
-    let finalMessage = `Berhasil menyimpan ${successCount} data peserta didik ke database.`;
+    let finalMessage = `Berhasil menyimpan ${successCount} data peserta didik.`;
     if (errors.length > 0) {
       finalMessage += ` (${errors.length} data ditolak karena kelas belum terdaftar)`;
     }
@@ -373,7 +373,7 @@ export async function importSiswaExcelAction(items: ItemSiswaImport[]) {
     console.error("Gagal import siswa massal:", error);
     return {
       success: false,
-      message: "Gagal memproses import data: " + (error?.message || "Terjadi kesalahan server."),
+      message: "Gagal memproses import data: " + (error?.message || "Terjadi kesalahan, silakan coba lagi."),
     };
   }
 }

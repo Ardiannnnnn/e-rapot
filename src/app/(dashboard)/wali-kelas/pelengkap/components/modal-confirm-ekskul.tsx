@@ -137,10 +137,6 @@ export function ModalConfirmEkskul({
                 <option value="Kurang">Kurang</option>
               </select>
             </div>
-
-            <p className="text-[11px] text-zinc-400">
-              Data ekstrakurikuler ini akan langsung disimpan ke database setelah ditambahkan.
-            </p>
           </div>
         ) : (
           <div className="text-xs text-zinc-600 leading-relaxed space-y-2 py-1">
@@ -148,9 +144,6 @@ export function ModalConfirmEkskul({
               Apakah Anda yakin ingin menghapus kegiatan{" "}
               <strong className="text-zinc-900 font-semibold">{ekskulNama}</strong> untuk siswa{" "}
               <strong className="text-zinc-900 font-semibold">{siswaNama}</strong>?
-            </p>
-            <p className="text-[11px] text-zinc-400">
-              Data ini akan langsung dihapus dari database.
             </p>
           </div>
         )}

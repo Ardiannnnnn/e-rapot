@@ -66,7 +66,7 @@ export async function createOperatorAction(formData: {
   if (!sekolah) {
     return {
       success: false,
-      message: "Sekolah yang dipilih tidak ditemukan dalam database.",
+      message: "Sekolah yang dipilih tidak ditemukan.",
     };
   }
 

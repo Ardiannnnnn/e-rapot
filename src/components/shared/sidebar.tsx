@@ -235,7 +235,7 @@ export default function Sidebar({ user, activeClass, periodeAktif }: SidebarProp
 
   const roleMeta = isWaliKelas
     ? isGuruMode
-      ? { label: "Mode Guru Mapel", bg: "bg-blue-50 text-blue-700 border-blue-200" }
+      ? { label: "Guru Mapel", bg: "bg-blue-50 text-blue-700 border-blue-200" }
       : { label: `Wali ${user.kelasWali?.nama || "Kelas"}`, bg: "bg-[#e9f0ec] text-[#1b4332] border-[#c2d7ca]" }
     : getRoleBadge(user.role);
 

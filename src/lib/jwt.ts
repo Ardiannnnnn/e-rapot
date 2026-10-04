@@ -24,11 +24,11 @@ export function getSecretKey(): Uint8Array {
 }
 
 /**
- * Buat Signed JWT Token dengan masa aktif default 7 hari
+ * Buat Signed JWT Token dengan masa aktif default 8 jam
  */
 export async function signJWT(
   payload: AuthJWTPayload,
-  expiresIn: string = "7d"
+  expiresIn: string = "8h"
 ): Promise<string> {
   const secretKey = getSecretKey();
 

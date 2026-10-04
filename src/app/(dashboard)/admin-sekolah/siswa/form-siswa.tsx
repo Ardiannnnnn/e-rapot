@@ -978,10 +978,10 @@ export default function FormSiswa({ initialSiswaList, kelasList }: FormSiswaProp
                 <SaveIcon className="h-4 w-4" />
                 <span>
                   {isImporting
-                    ? "Menyimpan ke Database..."
+                    ? "Menyimpan..."
                     : unmappedRowsCount > 0
                     ? `Simpan ${importRows.length - unmappedRowsCount} Siswa Valid (${unmappedRowsCount} Ditolak)`
-                    : `Simpan ke Database (${importRows.length} Siswa)`}
+                    : `Simpan Data (${importRows.length} Siswa)`}
                 </span>
               </button>
             </div>

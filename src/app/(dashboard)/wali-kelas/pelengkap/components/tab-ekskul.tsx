@@ -119,12 +119,6 @@ export function TabEkskul({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/wali-kelas/master-deskripsi"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-300 text-emerald-800 text-xs font-semibold hover:bg-emerald-50 transition shadow-2xs"
-          >
-            <span>⚙️</span> Kelola Pilihan Ekskul di Master ({opsiEkskulList.length} Pilihan)
-          </Link>
           {unsavedCount === 0 ? (
             <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-stone-200 text-xs font-semibold shadow-2xs">
               <span className="inline-flex items-center gap-1 text-emerald-700">

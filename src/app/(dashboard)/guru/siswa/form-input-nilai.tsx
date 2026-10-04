@@ -634,7 +634,7 @@ export default function FormInputNilai({
             <div>
               <p className="font-bold text-sm">Bobot Penilaian Belum Ditetapkan</p>
               <p className="text-amber-800 mt-0.5">
-                Mata pelajaran ini belum memiliki persentase bobot Tugas, UTS, dan UAS di database. Silakan tentukan bobot terlebih dahulu agar nilai akhir dapat dihitung.
+                Mata pelajaran ini belum memiliki persentase bobot Tugas, UTS, dan UAS. Silakan tentukan bobot terlebih dahulu agar nilai akhir dapat dihitung.
               </p>
             </div>
           </div>

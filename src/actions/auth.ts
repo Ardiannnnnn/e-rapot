@@ -95,7 +95,7 @@ export async function loginAction(formData: { email: string; password: string })
     httpOnly: true, // Kebal pencurian XSS dari JS browser
     sameSite: "lax", // Kebal CSRF
     secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7, // 1 minggu
+    maxAge: 60 * 60 * 8, // 8 jam (jam kerja)
     path: "/",
   });
 

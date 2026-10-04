@@ -111,13 +111,6 @@ export function TabPresensi({
               <span>{unsavedCount} Belum Disimpan</span>
             </button>
           )}
-          <Link
-            href="/wali-kelas/master-deskripsi"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-stone-300 bg-white text-zinc-700 text-xs font-semibold hover:bg-stone-50 transition"
-          >
-            <SlidersHorizontalIcon className="h-3.5 w-3.5 text-zinc-500" />
-            Kelola Opsi Saran di Master
-          </Link>
           {hasUnsavedChanges && (
             <button
               type="button"
