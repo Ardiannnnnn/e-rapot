@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NilaiKu — Platform Rapor & Penilaian Kurikulum Merdeka
 
-## Getting Started
+**NilaiKu** adalah aplikasi web modern untuk pengelolaan penilaian akademik dan pencetakan rapor digital berbasis Kurikulum Merdeka. Dirancang untuk memudahkan kolaborasi antara Guru, Wali Kelas, dan Admin Sekolah secara cepat, akurat, dan efisien.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Fitur Utama
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Multi-Role & Hak Akses**: Super Admin, Admin Sekolah / Operator, Guru Mata Pelajaran, dan Wali Kelas.
+- **Manajemen Data Akademik**: Pengelolaan Sekolah, Tahun Ajaran, Semester, Kelas/Rombel, dan Peserta Didik.
+- **Penilaian Pembelajaran**:
+  - Penilaian berbasis Capaian Pembelajaran (CP) dan Tujuan Pembelajaran (TP).
+  - Pengaturan bobot nilai (Tugas, UTS, UAS) dengan kalkulasi nilai akhir otomatis.
+  - Import dan export nilai via Excel (.xlsx).
+- **Data Pelengkap Rapor**:
+  - Rekapitulasi Presensi (Sakit, Izin, Alpa).
+  - Ekstrakurikuler & Predikat.
+  - Kokurikuler (Projek P5) berbasis tema dinamis.
+  - 7 Kebiasaan Anak Indonesia Hebat & Catatan/Saran Wali Kelas.
+  - Status Kenaikan / Kelulusan Siswa.
+- **Cetak Rapor Digital**:
+  - Format lembar rapor Kurikulum Merdeka standar nasional.
+  - Cetak lembar rapor per siswa dan Bulk PDF per kelas.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Teknologi
 
-## Learn More
+- **Framework**: [Next.js](https://nextjs.org/) (App Router, Server Actions, TypeScript)
+- **Styling**: Tailwind CSS
+- **Database & ORM**: PostgreSQL & [Prisma ORM](https://www.prisma.io/)
+- **Autentikasi**: JWT Session aman (Cookie HttpOnly, durasi 8 jam)
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Menjalankan Proyek
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Install dependensi**:
+   ```bash
+   npm install
+   ```
 
-## Deploy on Vercel
+2. **Konfigurasi Environment**:
+   Salin `.env.example` ke `.env` dan sesuaikan konfigurasi database:
+   ```env
+   DATABASE_URL="postgresql://user:password@localhost:5432/e_rapor"
+   AUTH_SECRET="kunci-rahasia-jwt-anda"
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Sinkronisasi Database**:
+   ```bash
+   npx prisma db push
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Jalankan Server Development**:
+   ```bash
+   npm run dev
+   ```
